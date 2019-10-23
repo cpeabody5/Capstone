@@ -6,13 +6,42 @@
 #include <math.h>
 
 #define NUM 4096
+#define SAMPLEFREQUENCY 44100
 
+/*
+Create an array of filter coefficents for the given frequency requirements 
+Inputs: 
+lowFreq - low frequency requirement, input 0 for lowpass filter
+highFreq - high frequency requirement
+order - order of desired filter, size of coeff buffer
+coeff - buffer for filter coefficents
+Output:
+return 0 on error
+*/
+int createFilter(int lowFreq, int highFreq, int order, double coeff[])
+{
+	return 0;
+}
 
+/*
+Filter the data in real and imag using a filter defined by coeff and order 
+Inputs: 
+coeff is the array of filter coefficents
+order is the filter order, and the size of the coeff array
+real and imag and arrays of input data
+size is the size of real and imag arrays
+Output:
+return 0 on error
+*/
+int filterData(double coeff[], int order, double real[], double imag[], int size)
+{
+	return 0;
+}
 
 //Reads numSamples from filename into buff
 //Returns 0 if failed to read file
 int readDataFromWav(const char* filename, double buff[], int numSamples){
-	unsigned int channels;
+    unsigned int channels;
     unsigned int sampleRate;
     drwav_uint64 totalPCMFrameCount;
     float* pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, &sampleRate, &totalPCMFrameCount, NULL);
@@ -58,7 +87,6 @@ int readDataFromFile(const char* filename, double buff[], int size)
 
 int plotFrequency(const char* filename, double real[], double imag[], int size)
 {
-	Fft_transform(real, imag, size);
 
 	FILE* out_f; 
 
@@ -85,11 +113,11 @@ int main()
 	double im[NUM] = {};
 
 	readDataFromWav("sine1000.wav", real, NUM);
-    plotFrequency("RES", real, im, NUM);
-	//double r[NUM];
-	//double i[NUM];
-	//readDataFromFile("DATA", r, NUM);
-	//plotFrequency("RES", r, i, NUM);
-	return 0;
 
+	Fft_transform(real, im, NUM);
+
+	plotFrequency("RES", real, im, NUM);
+
+
+	return 0;
 }
