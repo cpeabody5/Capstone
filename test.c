@@ -5,11 +5,27 @@
 #include <stdio.h>
 #include <math.h>
 
-#define NUM_CHANNELS 1
-#define SAMPLE_RATE 44100
-#define BLOCK_SIZE 480
 #define NUM 4096
-#define PI 3.1415
+
+
+
+//Reads numSamples from filename into buff
+//Returns 0 if failed to read file
+int readDataFromWav(const char* filename, double buff[], int numSamples){
+	unsigned int channels;
+    unsigned int sampleRate;
+    drwav_uint64 totalPCMFrameCount;
+    float* pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, &sampleRate, &totalPCMFrameCount, NULL);
+    if (pSampleData == NULL) {
+        // Error opening and reading WAV file.
+        return 0;
+    }
+
+    for(int i = 0; i < numSamples; i++)	buff[i] = (*(pSampleData+i));
+
+    drwav_free(pSampleData, NULL);
+    return 1;
+}
 
 /*
 Inputs:
@@ -54,7 +70,6 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 		{
 			H = sqrt(real[i]*real[i] + imag[i]*imag[i]);
 			H = (H>10000)?10000:H;
-			//H = ((w>1200)&&(w<1500))?H:0.1*H;
 			fprintf(out_f, "%f\t%f\n", w, H);
 			w+=dw;
 		}
@@ -67,28 +82,10 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 int main()
 {
 	double real[NUM];
-	double im[NUM];
+	double im[NUM] = {};
 
-    unsigned int channels;
-    unsigned int sampleRate;
-    drwav_uint64 totalPCMFrameCount;
-    float* pSampleData = drwav_open_file_and_read_pcm_frames_f32("ambulance.wav", &channels, &sampleRate, &totalPCMFrameCount, NULL);
-    if (pSampleData == NULL) {
-        // Error opening and reading WAV file.
-    }
-
-    printf("%d\n", sampleRate);
-
-    for(int i = 0; i < NUM; i++)
-    {
- 		//printf("%f\t", *(pSampleData+i));
-
-   		real[i] = (*(pSampleData+14096+i));
-   		im[i] = 0.0;
-    }
-
+	readDataFromWav("sine1000.wav", real, NUM);
     plotFrequency("RES", real, im, NUM);
-    drwav_free(pSampleData, NULL);
 	//double r[NUM];
 	//double i[NUM];
 	//readDataFromFile("DATA", r, NUM);
