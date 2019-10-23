@@ -8,17 +8,22 @@
 #define NUM 4096
 #define SAMPLEFREQUENCY 44100
 
+typedef struct filter
+{
+	int order;
+	double *coeff;
+}filter_t;
+
 /*
 Create an array of filter coefficents for the given frequency requirements 
 Inputs: 
 lowFreq - low frequency requirement, input 0 for lowpass filter
 highFreq - high frequency requirement
-order - order of desired filter, size of coeff buffer
-coeff - buffer for filter coefficents
+filter - struct for filter to be defined
 Output:
 return 0 on error
 */
-int createFilter(int lowFreq, int highFreq, int order, double coeff[])
+int createFilter(int lowFreq, int highFreq, filter_t *filter)
 {
 	return 0;
 }
@@ -26,14 +31,13 @@ int createFilter(int lowFreq, int highFreq, int order, double coeff[])
 /*
 Filter the data in real and imag using a filter defined by coeff and order 
 Inputs: 
-coeff is the array of filter coefficents
-order is the filter order, and the size of the coeff array
+filter - filter struct to be used  
 real and imag and arrays of input data
-size is the size of real and imag arrays
+size - the size of real and imag arrays
 Output:
 return 0 on error
 */
-int filterData(double coeff[], int order, double real[], double imag[], int size)
+int filterData(filter_t * filter, double real[], double imag[], int size)
 {
 	return 0;
 }
@@ -41,7 +45,7 @@ int filterData(double coeff[], int order, double real[], double imag[], int size
 //Reads numSamples from filename into buff
 //Returns 0 if failed to read file
 int readDataFromWav(const char* filename, double buff[], int numSamples){
-    unsigned int channels;
+	unsigned int channels;
     unsigned int sampleRate;
     drwav_uint64 totalPCMFrameCount;
     float* pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, &sampleRate, &totalPCMFrameCount, NULL);
@@ -114,9 +118,9 @@ int main()
 
 	readDataFromWav("sine1000.wav", real, NUM);
 
-	Fft_transform(real, im, NUM);
+    Fft_transform(real, im, NUM);
 
-	plotFrequency("RES", real, im, NUM);
+    plotFrequency("RES", real, im, NUM);
 
 
 	return 0;
