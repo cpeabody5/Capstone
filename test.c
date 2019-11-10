@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <math.h>
 
-#define NUM 4096
+#define NUM 44100 * 4
 #define SAMPLEFREQUENCY 44100
 
 typedef struct filter
@@ -54,7 +54,7 @@ int readDataFromWav(const char* filename, double buff[], int numSamples){
         return 0;
     }
 
-    for(int i = 0; i < numSamples; i++)	buff[i] = (*(pSampleData+i));
+    for(int i = 0; i < numSamples; i++)	buff[i] = (*(pSampleData+i+44100));
 
     drwav_free(pSampleData, NULL);
     return 1;
@@ -111,17 +111,17 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 	return 0;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+	printf("Reading from file: %s\n", argv[1]);
 	double real[NUM];
 	double im[NUM] = {};
 
-	readDataFromWav("sine1000.wav", real, NUM);
+	readDataFromWav(argv[1], real, NUM);
 
-    Fft_transform(real, im, NUM);
+	Fft_transform(real, im, NUM);
 
-    plotFrequency("RES", real, im, NUM);
-
+	plotFrequency("data/RES", real, im, NUM);
 
 	return 0;
 }
