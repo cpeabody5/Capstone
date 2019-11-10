@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <math.h>
 
-#define NUM 44100 * 4
 #define SAMPLEFREQUENCY 44100
+#define NUM_SAMPLES 44100 * 1
 
 typedef struct filter
 {
@@ -42,21 +42,20 @@ int filterData(filter_t * filter, double real[], double imag[], int size)
 	return 0;
 }
 
-//Reads numSamples from filename into buff
-//Returns 0 if failed to read file
-int readDataFromWav(const char* filename, double buff[], int numSamples){
+//Reads filename.wav into specified buffer
+//Returns 0 if failed to read file, returns total number of samples 
+int readDataFromWav(const char* filename, float buff[], unsigned int* sampleRate, drwav_uint64* totalPCMFrameCount){
 	unsigned int channels;
-    unsigned int sampleRate;
-    drwav_uint64 totalPCMFrameCount;
-    float* pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, &sampleRate, &totalPCMFrameCount, NULL);
+    float * pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, sampleRate, totalPCMFrameCount, NULL);
+	//printf("File Info:\n\tsampleRate = %d\n\tchannels = %d\n\tpcmframecount = %llu\n", sampleRate, channels, totalPCMFrameCount);
     if (pSampleData == NULL) {
         // Error opening and reading WAV file.
         return 0;
     }
 
-    for(int i = 0; i < numSamples; i++)	buff[i] = (*(pSampleData+i+44100));
+    for(unsigned long long i = 0; i < *totalPCMFrameCount; i++)	buff[i] = (*(pSampleData+i));
 
-    drwav_free(pSampleData, NULL);
+    //drwav_free(buff, NULL);
     return 1;
 }
 
@@ -112,16 +111,51 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 }
 
 int main(int argc, char* argv[])
-{
-	printf("Reading from file: %s\n", argv[1]);
-	double real[NUM];
-	double im[NUM] = {};
+{	
+	printf("Declaring variables\n\n");
+	float window_sec = 1;	// Number of seconds in analysis window
+	unsigned int window_samples;	// Number of samples in analysis window
+	
+	// For WAV
+	drwav_uint64 total_samples;
+	unsigned int sampleRate;
+	unsigned int channels;
 
-	readDataFromWav(argv[1], real, NUM);
+	// Read audio file to buffer
+	//readDataFromWav(argv[1], audio_samples, &sampleRate, &total_samples);
+    float * audio_samples = drwav_open_file_and_read_pcm_frames_f32(argv[1], &channels, &sampleRate, &total_samples, NULL);
+	if (audio_samples == NULL) return 1;	// Error reading audio file
+	
+	printf("Finished reading from file: %s, number of samples read = %llu\n, sampleRate = %d\n\n", argv[1], total_samples, sampleRate);
 
-	Fft_transform(real, im, NUM);
+	// Calculate Number of Samples in analysis window based on sampling rate
+	window_samples = (unsigned int) (window_sec * sampleRate);
 
-	plotFrequency("data/RES", real, im, NUM);
+	// Init Real and Im arrays
+	// real = (double*) malloc(window_samples * sizeof(double));
+	// im = (double*) malloc(window_samples * sizeof(double));
+	
+
+	// Go through samples in frames of a specified window length (window_samples)
+	int i;
+	int j;
+	for (i = 0; i < total_samples; i += window_samples) {
+		double real[window_samples];
+		double im[window_samples];
+		
+		// Get current window (sub-array of total audio samples)
+		for(j = i; j < i + window_samples; j++)
+			real[j - i] = audio_samples[j];
+		
+		// Perform FFT on current frame
+		Fft_transform(real, im, window_samples);
+
+		// Save Data to File
+		char outFilename[64];
+		sprintf(outFilename, "data/RES_%d", i/sampleRate);
+		printf("Saving Data of iteration %d to file %s\n", i/sampleRate, outFilename);
+		plotFrequency(outFilename, real, im, window_samples);
+	}
 
 	return 0;
 }

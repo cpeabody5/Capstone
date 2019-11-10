@@ -1,0 +1,13 @@
+# Set Terminal to PNG Output
+set terminal png;
+
+do for [t=0:4] {
+  outfile = sprintf('plots/plot_%d.png',t)
+  infile = sprintf('data/RES_%d',t)
+  set output outfile
+
+  # Plot data from "RES"
+  plot infile using 1:2 with lines;
+}
+
+
