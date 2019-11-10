@@ -113,7 +113,7 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 int main(int argc, char* argv[])
 {	
 	printf("Declaring variables\n\n");
-	float window_sec = 1;	// Number of seconds in analysis window
+	float window_sec = 0.2;	// Number of seconds in analysis window
 	unsigned int window_samples;	// Number of samples in analysis window
 	
 	// For WAV
@@ -147,19 +147,24 @@ int main(int argc, char* argv[])
 
 		for(int k = 0; k < window_samples; k++){
 			im[k] = 0;
+			real[k] = 0;
 		}
 		
 		// Get current window (sub-array of total audio samples)
-		for(j = i; j < i + window_samples; j++)
+		for(j = i; j < i + window_samples; j++) {
+			if (j > total_samples) {
+				break;
+			}
 			real[j - i] = audio_samples[j];
-		
+		}
+
 		// Perform FFT on current frame
 		Fft_transform(real, im, window_samples);
 
 		// Save Data to File
 		char outFilename[64];
-		sprintf(outFilename, "data/RES_%d", i/sampleRate);
-		printf("Saving Data of iteration %d to file %s\n", i/sampleRate, outFilename);
+		sprintf(outFilename, "data/RES_%d", i/window_samples);
+		printf("Saving Data of iteration %d to file %s\n", i/window_samples, outFilename);
 		plotFrequency(outFilename, real, im, window_samples);
 	}
 
