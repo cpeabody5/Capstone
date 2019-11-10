@@ -4,9 +4,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
-#define SAMPLEFREQUENCY 44100
-#define NUM_SAMPLES 44100 * 1
+#define NUM 40960
 
 typedef struct filter
 {
@@ -14,48 +14,67 @@ typedef struct filter
 	double *coeff;
 }filter_t;
 
-/*
-Create an array of filter coefficents for the given frequency requirements 
-Inputs: 
-lowFreq - low frequency requirement, input 0 for lowpass filter
-highFreq - high frequency requirement
-filter - struct for filter to be defined
-Output:
-return 0 on error
-*/
-int createFilter(int lowFreq, int highFreq, filter_t *filter)
-{
-	return 0;
-}
 
 /*
 Filter the data in real and imag using a filter defined by coeff and order 
 Inputs: 
 filter - filter struct to be used  
-real and imag and arrays of input data
+real and imag and arrays of input ,data
 size - the size of real and imag arrays
 Output:
 return 0 on error
 */
-int filterData(filter_t * filter, double real[], double imag[], int size)
+int filterData(filter_t *filter, double data[], int size)
 {
 	return 0;
 }
-
-//Reads filename.wav into specified buffer
-//Returns 0 if failed to read file, returns total number of samples 
-int readDataFromWav(const char* filename, float buff[], unsigned int* sampleRate, drwav_uint64* totalPCMFrameCount){
+/*
+// the FIR filter function
+void firFloat( double *coeffs, double *input, double *output,
+       int length, int filterLength )
+{
+    double acc;     // accumulator for MACs
+    double *coeffp; // pointer to coefficients
+    double *inputp; // pointer to input samples
+    int n;
+    int k;
+ 
+    // put the new samples at the high end of the buffer
+    memcpy( &insamp[filterLength - 1], input,
+            length * sizeof(double) );
+ 
+    // apply the filter to each input sample
+    for ( n = 0; n < length; n++ ) {
+        // calculate output n
+        coeffp = coeffs;
+        inputp = &insamp[filterLength - 1 + n];
+        acc = 0;
+        for ( k = 0; k < filterLength; k++ ) {
+            acc += (*coeffp++) * (*inputp--);
+        }
+        output[n] = acc;
+    }
+    // shift input samples back in time for next time
+    memmove( &insamp[0], &insamp[length],
+            (filterLength - 1) * sizeof(double) );
+ 
+}
+*/
+//Reads numSamples from filename into buff
+//Returns 0 if failed to read file
+int readDataFromWav(const char* filename, double buff[], int numSamples){
 	unsigned int channels;
-    float * pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, sampleRate, totalPCMFrameCount, NULL);
-	//printf("File Info:\n\tsampleRate = %d\n\tchannels = %d\n\tpcmframecount = %llu\n", sampleRate, channels, totalPCMFrameCount);
+    unsigned int sampleRate;
+    drwav_uint64 totalPCMFrameCount;
+    float* pSampleData = drwav_open_file_and_read_pcm_frames_f32(filename, &channels, &sampleRate, &totalPCMFrameCount, NULL);
     if (pSampleData == NULL) {
         // Error opening and reading WAV file.
         return 0;
     }
 
-    for(unsigned long long i = 0; i < *totalPCMFrameCount; i++)	buff[i] = (*(pSampleData+i));
+    for(int i = 0; i < numSamples; i++)	buff[i] = (*(pSampleData+i+10000));
 
-    //drwav_free(buff, NULL);
+    drwav_free(pSampleData, NULL);
     return 1;
 }
 
@@ -100,7 +119,7 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 		for(int i = 0; i <= size; i++)
 		{
 			H = sqrt(real[i]*real[i] + imag[i]*imag[i]);
-			H = (H>10000)?10000:H;
+			H = (H>10000)?10000:H/NUM;
 			fprintf(out_f, "%f\t%f\n", w, H);
 			w+=dw;
 		}
@@ -110,52 +129,19 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 	return 0;
 }
 
-int main(int argc, char* argv[])
-{	
-	printf("Declaring variables\n\n");
-	float window_sec = 1;	// Number of seconds in analysis window
-	unsigned int window_samples;	// Number of samples in analysis window
-	
-	// For WAV
-	drwav_uint64 total_samples;
-	unsigned int sampleRate;
-	unsigned int channels;
+int main()
+{
+	double real[NUM];
+	double im[NUM] = {};
 
-	// Read audio file to buffer
-	//readDataFromWav(argv[1], audio_samples, &sampleRate, &total_samples);
-    float * audio_samples = drwav_open_file_and_read_pcm_frames_f32(argv[1], &channels, &sampleRate, &total_samples, NULL);
-	if (audio_samples == NULL) return 1;	// Error reading audio file
-	
-	printf("Finished reading from file: %s, number of samples read = %llu\n, sampleRate = %d\n\n", argv[1], total_samples, sampleRate);
+	readDataFromWav("note.wav", real, NUM);
 
-	// Calculate Number of Samples in analysis window based on sampling rate
-	window_samples = (unsigned int) (window_sec * sampleRate);
+    Fft_transform(real, im, NUM);
 
-	// Init Real and Im arrays
-	// real = (double*) malloc(window_samples * sizeof(double));
-	// im = (double*) malloc(window_samples * sizeof(double));
-	
+    plotFrequency("RES", real, im, NUM);
 
-	// Go through samples in frames of a specified window length (window_samples)
-	int i;
-	int j;
-	for (i = 0; i < total_samples; i += window_samples) {
-		double real[window_samples];
-		double im[window_samples];
-		
-		// Get current window (sub-array of total audio samples)
-		for(j = i; j < i + window_samples; j++)
-			real[j - i] = audio_samples[j];
-		
-		// Perform FFT on current frame
-		Fft_transform(real, im, window_samples);
-
-		// Save Data to File
-		char outFilename[64];
-		sprintf(outFilename, "data/RES_%d", i/sampleRate);
-		printf("Saving Data of iteration %d to file %s\n", i/sampleRate, outFilename);
-		plotFrequency(outFilename, real, im, window_samples);
-	}
 
 	return 0;
 }
+
+
