@@ -87,7 +87,10 @@ int readDataFromFile(const char* filename, double buff[], int size)
 }
 
 
-
+/*
+	Generates data files to use for plotting.
+	Writes to data/RES_# (frequency, magnitude)
+*/
 int plotFrequency(const char* filename, double real[], double imag[], int size)
 {
 
@@ -110,10 +113,14 @@ int plotFrequency(const char* filename, double real[], double imag[], int size)
 	return 0;
 }
 
+/*
+	arg1: full filename of audio file to analyze
+	arg2: number of seconds in analysis window (resolution)
+*/
 int main(int argc, char* argv[])
 {	
 	printf("Declaring variables\n\n");
-	float window_sec = 0.2;	// Number of seconds in analysis window
+	float window_sec = atof(argv[2]);	// Number of seconds in analysis window
 	unsigned int window_samples;	// Number of samples in analysis window
 	
 	// For WAV
@@ -158,7 +165,7 @@ int main(int argc, char* argv[])
 			real[j - i] = audio_samples[j];
 		}
 
-		// Perform FFT on current frame
+		// Perform FFT on current frame (in-place)
 		Fft_transform(real, im, window_samples);
 
 		// Save Data to File
