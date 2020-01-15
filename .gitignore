@@ -1,11 +1,17 @@
-# Output files
+# OS Files
+.DS_Store
 
+# Config and Debug Files
+.vscode/
+*.dSYM
+
+# Output files
 *.out
 *.gch
-RES
+data/*
+plots/*
 
 # Recordings
-
 Recordings/
 *.wav
 
