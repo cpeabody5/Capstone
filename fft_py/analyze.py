@@ -15,6 +15,23 @@ import sys
 import time
 import matplotlib.pyplot as plt
 
+# Constants
+SAMPLING_RATE = 48000   # Default if sampling rate not obtained from wav file
+SHARED_MEM_NAME = 'capstone-memory-buffer'
+
+# For plotting
+F_MIN = 0
+F_MAX = 2000
+
+# For windowing (sliding window)
+WIN_DURATION = 0.1  # in seconds
+STEP_SIZE = 0.1     # in seconds
+
+# Global Vars
+real_time = False   # Flag indicating whether input is from file or shared memory
+audio_data = np.array     # array keeping track of audio data
+
+
 def plot(x1, y1, x2, y2, x3, y3, filename='Audio File', hold=True):
     plt.gcf().clear()
 
@@ -44,18 +61,19 @@ def plot(x1, y1, x2, y2, x3, y3, filename='Audio File', hold=True):
     plt.show(block = hold)
 
 
+# Reads audio samples from WAV file or memory location.
+# Returns sampling frequency and data
+def read_audio_data(name):
+    return wavfile.read(name)
+
 def main():
     # Read wave file specified in command line args
-    filename = sys.argv[1]
-    fs, data = wavfile.read(filename)   # returns sampling frequency and data
-    audio_len = len(data) / fs  # Audio length in seconds
+    fs, data = read_audio_data(sys.argv[1])
 
     # Sliding Window
-    window_sec = 0.1    # number of seconds in the window
-    window_samples = int(window_sec * fs)   # number of samples in the window
-    step_size = 0.1     # number of seconds to step the window by
+    window_samples = int(WIN_DURATION * fs)   # number of samples in the window
 
-    for i in range(0, len(data) - window_samples, int(step_size * fs)):
+    for i in range(0, len(data) - window_samples, int(STEP_SIZE * fs)):
         # Current Window & Window parameters
         window = data[i : i+window_samples]     # Actual samples in the window
         w_start_time = float(i) / fs
@@ -68,10 +86,8 @@ def main():
         freq = freq[0:int(len(window)/2)]  # Discard negative half of fft
 
         # Plot - freq array is dependent on length of audio
-        f_min = 0
-        f_max = 20000
-        min_pos = int(f_min * window_sec)   # position in the freq array corresponding to f_min
-        max_pos = int(f_max * window_sec)
+        min_pos = int(F_MIN * WIN_DURATION)   # position in the freq array corresponding to f_min
+        max_pos = int(F_MAX * WIN_DURATION)
 
         # Setting up Axes and data for the plots
         x_freq = np.linspace(f_min, f_max, max_pos - min_pos)
