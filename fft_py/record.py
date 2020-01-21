@@ -7,23 +7,29 @@ Required:
     sounddevice
 '''
 
-import numpy
+import numpy as np
 import sounddevice as sd
-from multiprocessing import shared_memory
+from objects import AudioObject
 
-# Configuration parameters
-SAMPLING_RATE = 48000
-DURATION = 0.1 # In seconds
+class AudioRecorder:
+    def main(self):
+        sd.default.samplerate = self.audio.fs
+        sd.default.channels = 1
 
-def main():
-    sd.default.samplerate = SAMPLING_RATE
-    sd.default.channels = 1
-    
-    # Listening Loop
-    while(True):
-        audio_samples = sd.rec(int(DURATION * SAMPLING_RATE), dtype='float16', blocking=True)
-        
-
+        # Listening Loop
+        while(True):
+            audio_samples = sd.rec(
+                int(self.audio.BUFFER_DURATION * self.audio.fs),
+                dtype='float32', 
+                blocking=True)
+            samples = [i[0] for i in audio_samples]
+            samples = np.array(samples, dtype=np.float32)
+            self.audio.write_audio_data(samples)
+            
+    def __init__(self):
+        self.audio = AudioObject()
+        self.audio.init_mem(create=True)
+        self.main()
 
 # Run program
-main()
+AudioRecorder()
