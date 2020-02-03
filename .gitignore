@@ -16,3 +16,5 @@ Recordings/
 
 __pycache__/
 *.pyc
+
+arduino/
