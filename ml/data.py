@@ -213,14 +213,28 @@ class GenerateData():
 
 		return spec
 
-	def generate_siren(self):
+	def generate_siren(self, doppler=False):
 		# generates the siren over a 2d array, bin size for time and frequency should be given as well
 		# this should start out with a sweep  then become more siren like.
 
 		def frequency_func(timesteps):
 
 			freq = -500*np.cos(2*np.pi*timesteps*0.25)+1000
-			return np.asarray(freq)
+			arr = np.asarray(freq)
+
+			#Add Doppler effect
+			if (doppler):
+                                size = len(arr)
+                                rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
+                                speed = 200 #Change this parameter to experiment with different speeds of the source (siren)
+                                dopp_scale = 0.25 #Change this parameter to change how fast the Doppler effect occurs
+                                for i in range(size):
+                                        #Relative velocity roughly follows a sigmoid function
+                                        rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
+                                        #Formula for Doppler effect perceived by the listener
+                                        arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
+			
+			return arr
 		#frequency = np.asarray([440, 600])
 		def amplitude_func(timesteps,freq):
 			return freq*0+1
@@ -240,7 +254,7 @@ class GenerateData():
 
 
 	def add_doppler_effect(self, delay): #TBD: convert delay to incoming speed, and position
-		pass
+                pass
 
 	def add_echoing_effect(self, sd_distance, deflect_ang, dd_distance): 
 		#sd_distance is the source to deflection distance
@@ -262,7 +276,7 @@ class GenerateData():
 
 
 def main():
-	gd = GenerateData(samplerate=16000, time=5)
+	gd = GenerateData(samplerate=16000, time=4)
 	gd.generate_siren()
 	gd.add_noise()
 	print("converting...")
