@@ -235,7 +235,7 @@ class GenerateData():
 		# should include models of environmental factors by default such as wind noise, rain, snow, and other factors that might happen on the roof of a car.
 		# such as impacts in the metal.
 		# also includes car engine nose, and general sounds of a car.
-		self.spec += np.random.normal(0,self.max_amp/10)
+		self.spec[:25] += np.random.uniform(0, self.max_amp/10)
 		self.spec = np.maximum(self.spec,0)
 
 
