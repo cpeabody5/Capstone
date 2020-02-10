@@ -7,6 +7,7 @@ import matplotlib.animation as animation
 #import tensorflow as tf
 import librosa.feature
 import time
+from scipy import signal
 
 import sounddevice as sd
 
@@ -54,7 +55,7 @@ class MelSpectrogram():
 			assert not sr is None, "sr, sample rate must be defined if new_samples is specified."
 		
 		spectrogram = librosa.feature.melspectrogram(
-					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=hop_length)
+					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=default_hop_length)
 		if is_log:
 			spectrogram = np.log10(spectrogram)
 		return spectrogram
@@ -217,27 +218,55 @@ class GenerateData():
 		# generates the siren over a 2d array, bin size for time and frequency should be given as well
 		# this should start out with a sweep  then become more siren like.
 
-		def frequency_func(timesteps):
+		# NOTE: min and max vals can be constants as well to ony need 1 random function
+		def rand_freq(f_min=0.25, f_max=4):
+			# Generates a random frequency (in Hz) between the given parameters
+			return (f_max - f_min) * np.random.random() + f_min
 
-			freq = -500*np.cos(2*np.pi*timesteps*0.25)+1000
+		def rand_amplitude(a_min=200, a_max=500):
+			# Generates a random amplitude (in Hz) for the frequency betw/ given params
+			return (a_max - a_min) * np.random.random() + a_min
+		
+		def rand_offset(o_min = 500, o_max = 1500):
+			# Generates a random center frequency (in Hz) betw/ given params
+			return (o_max - o_min) * np.random.random() + o_min
+
+		def rand_waveform():
+			# Randomly generates cos or square func
+			# NOTE square wave does not work at the moment (throws error)
+			return np.cos
+			#return np.random.choice([np.cos, signal.square])
+
+		def rand_occlusion(t, amps):
+			# ALL HARDCODED FOR NOW NEED TO CHANGE
+			duty = np.random.random()
+			print("DUTY CYCLE {}".format(duty))
+			occlusion_signal = 0.3 * signal.square(2*np.pi*t/4, duty) + 0.7
+			np.multiply(amps, occlusion_signal)
+			
+
+		def frequency_func(timesteps):
+			waveform = rand_waveform()
+			amp = rand_amplitude()
+			f = rand_freq()
+			offset = rand_offset()
+			freq = amp * waveform(2*np.pi*f*timesteps) + offset
+			print("Generating Random Signal --> ")
+			print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(f, amp, offset, waveform))
+			#freq = -500*np.cos(2*np.pi*timesteps*1)+1000
 			arr = np.asarray(freq)
 
 			#Add Doppler effect
 			if (doppler):
-                                size = len(arr)
-                                rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
-                                speed = 200 #Change this parameter to experiment with different speeds of the source (siren)
-                                dopp_scale = 0.25 #Change this parameter to change how fast the Doppler effect occurs
-                                for i in range(size):
-                                        #Relative velocity roughly follows a sigmoid function
-                                        rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
-                                        #Formula for Doppler effect perceived by the listener
-                                        arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
-			
+				arr = self.add_doppler_effect(arr)
+
 			return arr
+
 		#frequency = np.asarray([440, 600])
 		def amplitude_func(timesteps,freq):
-			return freq*0+1
+			amps = freq*0+1
+			rand_occlusion(timesteps, amps)
+			return amps
 		#mels = print(np.argmin())
 		spec = self.create_melspec(frequency_func, amplitude_func)
 		
@@ -253,8 +282,17 @@ class GenerateData():
 		self.spec = np.maximum(self.spec,0)
 
 
-	def add_doppler_effect(self, delay): #TBD: convert delay to incoming speed, and position
-                pass
+	def add_doppler_effect(self, arr): #TBD: convert delay to incoming speed, and position
+		size = len(arr)
+		rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
+		speed = 200 #Change this parameter to experiment with different speeds of the source (siren)
+		dopp_scale = 0.25 #Change this parameter to change how fast the Doppler effect occurs
+		for i in range(size):
+			#Relative velocity roughly follows a sigmoid function
+			rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
+			#Formula for Doppler effect perceived by the listener
+			arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
+		return arr
 
 	def add_echoing_effect(self, sd_distance, deflect_ang, dd_distance): 
 		#sd_distance is the source to deflection distance
@@ -276,17 +314,16 @@ class GenerateData():
 
 
 def main():
-	gd = GenerateData(samplerate=16000, time=4)
+	gd = GenerateData(samplerate=48000, time=4)
 	gd.generate_siren()
-	gd.add_noise()
+	# gd.add_noise()
 	print("converting...")
 	time_arr = gd.convert_melspectrogram_to_time_domain()
+	time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
 	print("playing...")
 	sd.play(time_arr, gd.sr, blocking=True)
-
-
-
-
+	plt.pcolormesh(gd.spec)
+	plt.show()
 
 
 
