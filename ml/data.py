@@ -219,10 +219,11 @@ class GenerateData():
 
 		def frequency_func(timesteps):
 
-			freq = -500*np.cos(2*np.pi*timesteps*0.25)+1000
+			freq = -364.8*np.cos(2*np.pi*timesteps*2.1)+781.2
 			arr = np.asarray(freq)
 
 			#Add Doppler effect
+			"""
 			if (doppler):
                                 size = len(arr)
                                 rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
@@ -233,7 +234,7 @@ class GenerateData():
                                         rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
                                         #Formula for Doppler effect perceived by the listener
                                         arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
-			
+			"""
 			return arr
 		#frequency = np.asarray([440, 600])
 		def amplitude_func(timesteps,freq):
@@ -275,14 +276,17 @@ class GenerateData():
 		pass
 
 
+
 def main():
 	gd = GenerateData(samplerate=16000, time=4)
 	gd.generate_siren()
-	gd.add_noise()
+	#gd.add_noise()
 	print("converting...")
 	time_arr = gd.convert_melspectrogram_to_time_domain()
 	print("playing...")
 	sd.play(time_arr, gd.sr, blocking=True)
+	plt.pcolormesh(gd.spec)
+	plt.show()
 
 
 
