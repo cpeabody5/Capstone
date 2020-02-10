@@ -214,64 +214,69 @@ class GenerateData():
 
 		return spec
 
-	def generate_siren(self, doppler=False):
-		# generates the siren over a 2d array, bin size for time and frequency should be given as well
-		# this should start out with a sweep  then become more siren like.
+	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None):
+		"""generates the siren over a 2d array, bin size for time and frequency should be given as well
+		this should start out with a sweep  then become more siren like.
+	
+		
+		Args:
+		    doppler (bool): True if want doppler effect
+		    amp (None, float): amplitude of siren sweep
+		    f (None, float): frequency of siren sweep
+		    offset (None, float): offset o siren sweep
+		    waveform (None, string): see waveform_choices for list of available waveforms
+		"""
+		waveform_choices = {
+			"cos":np.cos, 
+			"square":lambda x: np.round(((np.cos(x)+1)+0.01*np.sin(x))/2),
+			}
+		
 
 		# NOTE: min and max vals can be constants as well to ony need 1 random function
-		def rand_freq(f_min=0.25, f_max=4):
-			# Generates a random frequency (in Hz) between the given parameters
-			return (f_max - f_min) * np.random.random() + f_min
+		def rand(mini=0, maxi=1):
+			# random selection funcion
+			return (maxi - mini) * np.random.random() + mini
 
-		def rand_amplitude(a_min=200, a_max=500):
-			# Generates a random amplitude (in Hz) for the frequency betw/ given params
-			return (a_max - a_min) * np.random.random() + a_min
+		# set siren parameters, will be amp*waveform(2*pi*f*t)+offset
+		waveform = waveform if not waveform is None else np.random.choice(list(waveform_choices.keys()))
+		amp = amp if not amp is None else rand(200,500)
+		f = f if not f is None else rand(0.25, 4)
+		offset = offset if not offset is None else rand(500,1500)
+
+
+		# get waveform
+		if not waveform in waveform_choices:
+			raise Exception("warning, waveform unknown")
+		waveform = waveform_choices[waveform]
 		
-		def rand_offset(o_min = 500, o_max = 1500):
-			# Generates a random center frequency (in Hz) betw/ given params
-			return (o_max - o_min) * np.random.random() + o_min
+		# define these here so they can be extracted for later.
+		self.freq_params = {
+				"f":f,
+				"amp":amp,
+				"offset":offset,
+				"waveform":waveform
+			}
 
-		def rand_waveform():
-			# Randomly generates cos or square func
-			# NOTE square wave does not work at the moment (throws error)
-			return np.cos
-			#return np.random.choice([np.cos, signal.square])
-
-		def rand_occlusion(t, amps):
-			# ALL HARDCODED FOR NOW NEED TO CHANGE
-			duty = np.random.random()
-			print("DUTY CYCLE {}".format(duty))
-			occlusion_signal = 0.3 * signal.square(2*np.pi*t/4, duty) + 0.7
-			np.multiply(amps, occlusion_signal)
-			
-
+		print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
+		
 		def frequency_func(timesteps):
-			waveform = rand_waveform()
-			amp = rand_amplitude()
-			f = rand_freq()
-			offset = rand_offset()
-			freq = amp * waveform(2*np.pi*f*timesteps) + offset
-			print("Generating Random Signal --> ")
-			print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(f, amp, offset, waveform))
-			#freq = -500*np.cos(2*np.pi*timesteps*1)+1000
-			arr = np.asarray(freq)
+			#generate waveform
+			#TBD: save the parameters below into a file when logging (save to database)
+			freq = amp * waveform(2*np.pi*f*timesteps) + offset #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
 
 			#Add Doppler effect
-			if (doppler):
-				arr = self.add_doppler_effect(arr)
+			if doppler:
+				freq = self.add_doppler_effect(freq)
+			return freq
 
-			return arr
-
-		#frequency = np.asarray([440, 600])
 		def amplitude_func(timesteps,freq):
+			#TBD: should randomize this according to distance
 			amps = freq*0+1
-			rand_occlusion(timesteps, amps)
 			return amps
-		#mels = print(np.argmin())
-		spec = self.create_melspec(frequency_func, amplitude_func)
-		
-		self.spec +=spec
 
+		# TBD should keep information about 
+		spec = self.create_melspec(frequency_func, amplitude_func)
+		self.spec +=spec
 
 	def add_noise(self, is_structured=False): 
 		#TBD: allow addition of randomness, and structured randomness.
@@ -302,9 +307,9 @@ class GenerateData():
 		# this could be done in a finite state manner, where we can add more for multiple signals and complexity.
 		pass
 
-	def add_partial_occlusions(self, min_show_period):
+	def add_partial_occlusions(self, freq, min_show_period):
 		# min_show period is the amount of frames needed to show the the siren in a continuous amount of time.
-		pass 
+		return freq
 
 
 	def sound_diffraction(self, matrix):
