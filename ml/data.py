@@ -283,7 +283,7 @@ class GenerateData():
 		# should include models of environmental factors by default such as wind noise, rain, snow, and other factors that might happen on the roof of a car.
 		# such as impacts in the metal.
 		# also includes car engine nose, and general sounds of a car.
-		self.spec += np.random.normal(0,self.max_amp/10)
+		self.spec[:25] += np.random.uniform(0, self.max_amp/10)
 		self.spec = np.maximum(self.spec,0)
 
 
@@ -318,10 +318,11 @@ class GenerateData():
 		pass
 
 
+
 def main():
 	gd = GenerateData(samplerate=48000, time=4)
 	gd.generate_siren()
-	# gd.add_noise()
+	#gd.add_noise()
 	print("converting...")
 	time_arr = gd.convert_melspectrogram_to_time_domain()
 	time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
@@ -329,8 +330,6 @@ def main():
 	sd.play(time_arr, gd.sr, blocking=True)
 	plt.pcolormesh(gd.spec)
 	plt.show()
-
-
 
 def test_melconversions():
 	spec = MelSpectrogram()

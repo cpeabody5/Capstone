@@ -33,7 +33,6 @@ class AudioRecorder:
 		#self.audio.init_mem(create=True)
 
 # Run program
-
 def main():
 	recorder = AudioRecorder()
 	while 1:

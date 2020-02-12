@@ -13,7 +13,7 @@ class AudioObject:
 	Keeps track of reading & writing audio samples and manages
 	shared memory relating to audio segments
 	'''
-	def __init__(self, DEFAULT_SAMPLE_RATE=16000, BUFFER_DURATION=0.03, 
+	def __init__(self, DEFAULT_SAMPLE_RATE=16000, BUFFER_DURATION=0.2, 
 								SHARED_MEM_NAME='capstone-memory-buffer'):
 		self.DEFAULT_SAMPLE_RATE = DEFAULT_SAMPLE_RATE
 		self.BUFFER_DURATION = BUFFER_DURATION   # in seconds
