@@ -1,44 +1,37 @@
 import tensorflow as tf 
 import numpy as np 
 
-class SirenDetection():
-	def __init__(self):
+class SirenDetection(tf.keras.Model):
+	def __init__(self, name="SirenDetection", **kwargs):
+		super().__init__(name=name, **kwargs)
 		self._create_model()
 
 	def _create_model(self):
-		self.model = tf.keras.Sequential(
-			(tf.keras.layers.Flatten(),
-						tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
-						tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
-						tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
-						tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
-						tf.keras.layers.Dense(2, activation=tf.keras.activations.softmax)
-						))
+		self.model = tf.keras.Sequential((
+				tf.keras.layers.Flatten(),
+				tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
+				tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
+				tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
+				tf.keras.layers.Dense(128, activation=tf.keras.activations.relu),
+				tf.keras.layers.Dense(2, activation=tf.keras.activations.softmax)
+			))
 
-	def run(self, inputs):
+	def call(self, inputs):
 		#model takes in inputs and returns output
 		return self.model(inputs)
 
-	def loss(self, pred, actu):
-		# returns the loss
-		return tf.keras.losses.MSE(actu, pred)
-	
-	def train(self, loss, **kwargs):
-		# trains the loss functions
-		return 
-
-	def save(self, file):
-		# saves the model to the file
-		pass 
-
-	def load(self, file):
-		# loads the model from te file
-		pass
-
 def main():
-	inputs = np.zeros((4,5,5))
-	siren = SirenDetection()
-	print(siren.run(inputs))
+	inputs = np.random.normal(size=(10,5,5))
+	outputs = np.random.normal(size =(10,2))
+	detector = SirenDetection()
+	detector(inputs)
+	w1 = detector.get_weights()
+	detector.compile(optimizer=tf.keras.optimizers.Adam(),
+		loss=tf.keras.losses.MSE)
+	detector.fit(inputs, outputs, batch_size=2, epochs=1)
+	w2 = detector.get_weights()
+	assert not (w1[0]==w2[0]).all(), "weights are not being trained"
+
 
 
 
