@@ -14,5 +14,7 @@ plots/*
 # Recordings
 Recordings/
 
-__pycache__/
+*/__pycache__/*
 *.pyc
+
+arduino/

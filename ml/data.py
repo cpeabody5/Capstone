@@ -7,6 +7,7 @@ import matplotlib.animation as animation
 #import tensorflow as tf
 import librosa.feature
 import time
+from scipy import signal
 
 import sounddevice as sd
 
@@ -54,7 +55,7 @@ class MelSpectrogram():
 			assert not sr is None, "sr, sample rate must be defined if new_samples is specified."
 		
 		spectrogram = librosa.feature.melspectrogram(
-					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=hop_length)
+					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=default_hop_length)
 		if is_log:
 			spectrogram = np.log10(spectrogram)
 		return spectrogram
@@ -213,37 +214,69 @@ class GenerateData():
 
 		return spec
 
-	def generate_siren(self, doppler=False):
-		# generates the siren over a 2d array, bin size for time and frequency should be given as well
-		# this should start out with a sweep  then become more siren like.
+	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None):
+		"""generates the siren over a 2d array, bin size for time and frequency should be given as well
+		this should start out with a sweep  then become more siren like.
+	
+		
+		Args:
+		    doppler (bool): True if want doppler effect
+		    amp (None, float): amplitude of siren sweep
+		    f (None, float): frequency of siren sweep
+		    offset (None, float): offset o siren sweep
+		    waveform (None, string): see waveform_choices for list of available waveforms
+		"""
+		waveform_choices = {
+			"cos":np.cos, 
+			"square":lambda x: np.round(((np.cos(x)+1)+0.01*np.sin(x))/2),
+			}
+		
 
+		# NOTE: min and max vals can be constants as well to ony need 1 random function
+		def rand(mini=0, maxi=1):
+			# random selection funcion
+			return (maxi - mini) * np.random.random() + mini
+
+		# set siren parameters, will be amp*waveform(2*pi*f*t)+offset
+		waveform = waveform if not waveform is None else np.random.choice(list(waveform_choices.keys()))
+		amp = amp if not amp is None else rand(200,500)
+		f = f if not f is None else rand(0.25, 4)
+		offset = offset if not offset is None else rand(500,1500)
+
+
+		# get waveform
+		if not waveform in waveform_choices:
+			raise Exception("warning, waveform unknown")
+		waveform = waveform_choices[waveform]
+		
+		# define these here so they can be extracted for later.
+		self.freq_params = {
+				"f":f,
+				"amp":amp,
+				"offset":offset,
+				"waveform":waveform
+			}
+
+		print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
+		
 		def frequency_func(timesteps):
-
-			freq = -364.8*np.cos(2*np.pi*timesteps*2.1)+781.2
-			arr = np.asarray(freq)
+			#generate waveform
+			#TBD: save the parameters below into a file when logging (save to database)
+			freq = amp * waveform(2*np.pi*f*timesteps) + offset #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
 
 			#Add Doppler effect
-			"""
-			if (doppler):
-                                size = len(arr)
-                                rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
-                                speed = 200 #Change this parameter to experiment with different speeds of the source (siren)
-                                dopp_scale = 0.25 #Change this parameter to change how fast the Doppler effect occurs
-                                for i in range(size):
-                                        #Relative velocity roughly follows a sigmoid function
-                                        rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
-                                        #Formula for Doppler effect perceived by the listener
-                                        arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
-			"""
-			return arr
-		#frequency = np.asarray([440, 600])
-		def amplitude_func(timesteps,freq):
-			return freq*0+1
-		#mels = print(np.argmin())
-		spec = self.create_melspec(frequency_func, amplitude_func)
-		
-		self.spec +=spec
+			if doppler:
+				freq = self.add_doppler_effect(freq)
+			return freq
 
+		def amplitude_func(timesteps,freq):
+			#TBD: should randomize this according to distance
+			amps = freq*0+1
+			return amps
+
+		# TBD should keep information about 
+		spec = self.create_melspec(frequency_func, amplitude_func)
+		self.spec +=spec
 
 	def add_noise(self, is_structured=False): 
 		#TBD: allow addition of randomness, and structured randomness.
@@ -254,8 +287,17 @@ class GenerateData():
 		self.spec = np.maximum(self.spec,0)
 
 
-	def add_doppler_effect(self, delay): #TBD: convert delay to incoming speed, and position
-                pass
+	def add_doppler_effect(self, arr): #TBD: convert delay to incoming speed, and position
+		size = len(arr)
+		rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
+		speed = 200 #Change this parameter to experiment with different speeds of the source (siren)
+		dopp_scale = 0.25 #Change this parameter to change how fast the Doppler effect occurs
+		for i in range(size):
+			#Relative velocity roughly follows a sigmoid function
+			rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
+			#Formula for Doppler effect perceived by the listener
+			arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
+		return arr
 
 	def add_echoing_effect(self, sd_distance, deflect_ang, dd_distance): 
 		#sd_distance is the source to deflection distance
@@ -265,9 +307,9 @@ class GenerateData():
 		# this could be done in a finite state manner, where we can add more for multiple signals and complexity.
 		pass
 
-	def add_partial_occlusions(self, min_show_period):
+	def add_partial_occlusions(self, freq, min_show_period):
 		# min_show period is the amount of frames needed to show the the siren in a continuous amount of time.
-		pass 
+		return freq
 
 
 	def sound_diffraction(self, matrix):
@@ -278,21 +320,16 @@ class GenerateData():
 
 
 def main():
-	gd = GenerateData(samplerate=16000, time=4)
+	gd = GenerateData(samplerate=48000, time=4)
 	gd.generate_siren()
 	#gd.add_noise()
 	print("converting...")
 	time_arr = gd.convert_melspectrogram_to_time_domain()
+	time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
 	print("playing...")
 	sd.play(time_arr, gd.sr, blocking=True)
 	plt.pcolormesh(gd.spec)
 	plt.show()
-
-
-
-
-
-
 
 def test_melconversions():
 	spec = MelSpectrogram()
