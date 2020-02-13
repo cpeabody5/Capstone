@@ -122,6 +122,13 @@ class GenerateData():
 		# we are using the Slaney version of mel
 		self.mel_freq_bins_ceil = librosa.core.mel_frequencies(self.n_mels, fmax=self.sr/2) 
 		self.mel_freq_bins_avg = (self.mel_freq_bins_ceil[1:] + self.mel_freq_bins_ceil[:-1])/2
+		self.label = np.zeros(())
+
+	@property
+	def mfcc(self):
+		log_mel_spec = librosa.core.power_to_db(self.spec)
+		return librosa.feature.mfcc(S=self.spec)
+	
 
 	def convert_melspectrogram_to_time_domain(self, spec=None, n_chunks=3):
 		if spec is None:
@@ -173,11 +180,10 @@ class GenerateData():
 		weights = (frequency - w2)/(w1-w2)
 		weights = weights.reshape(f_s)
 		cn = cn.reshape(f_s)
-
 		cn = np.where(weights>1, neg_freq_hand, cn)
 		weights = np.where(weights>1, neg_freq_hand, weights)
-
-		return cn.astype(int), weights
+		
+		return cn, weights
 
 	def create_melspec(self, frequency_func, amplitude_func):
 		"""
@@ -209,12 +215,12 @@ class GenerateData():
 
 		# create the spec array.
 		spec = np.zeros((self.n_mels, len(self.timesteps)))
-		spec[b1,np.arange(len(self.timesteps))] += w1*self.max_amp
-		spec[b2,np.arange(len(self.timesteps))] += w2*self.max_amp
+		spec[b1.astype(int),np.arange(len(self.timesteps))] += w1*self.max_amp
+		spec[b2.astype(int),np.arange(len(self.timesteps))] += w2*self.max_amp
 
 		return spec
 
-	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None):
+	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None, verbose=False):
 		"""generates the siren over a 2d array, bin size for time and frequency should be given as well
 		this should start out with a sweep  then become more siren like.
 	
@@ -226,6 +232,8 @@ class GenerateData():
 		    offset (None, float): offset o siren sweep
 		    waveform (None, string): see waveform_choices for list of available waveforms
 		"""
+		self.label = np.ones(())
+
 		waveform_choices = {
 			"cos":np.cos, 
 			"square":lambda x: np.round(((np.cos(x)+1)+0.01*np.sin(x))/2),
@@ -256,8 +264,8 @@ class GenerateData():
 				"offset":offset,
 				"waveform":waveform
 			}
-
-		print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
+		if verbose:
+			print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
 		
 		def frequency_func(timesteps):
 			#generate waveform
@@ -323,11 +331,11 @@ def main():
 	gd = GenerateData(samplerate=48000, time=4)
 	gd.generate_siren()
 	#gd.add_noise()
-	print("converting...")
-	time_arr = gd.convert_melspectrogram_to_time_domain()
-	time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
-	print("playing...")
-	sd.play(time_arr, gd.sr, blocking=True)
+	#print("converting...")
+	#time_arr = gd.convert_melspectrogram_to_time_domain()
+	#time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
+	#print("playing...")
+	#sd.play(time_arr, gd.sr, blocking=True)
 	plt.pcolormesh(gd.spec)
 	plt.show()
 

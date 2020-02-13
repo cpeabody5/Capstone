@@ -13,11 +13,11 @@ def gen_data(x=10000):
 	dset = None
 	labels = None
 	for i in range(x):
-		MelData = GenerateData(samplerate=16000, time=5)
-		if np.random.randint():
+		MelData = GenerateData(samplerate=16000, time=0.2)
+		if np.random.randint(2):
 			MelData.generate_siren()
 		MelData.add_noise()
-		spec = MelData.spec
+		spec = MelData.mfcc
 		label = MelData.label #TBD: this should be length of time series, which indicates siren at each point
 		if dset is None:
 			dset = np.empty((x,*spec.shape))
@@ -37,24 +37,32 @@ def gen_data(x=10000):
 
 def main():
 	# get data (TBD: should use tf.data.object.)
+	inputs, outputs = gen_data(3)
 	inputs, outputs = gen_data(10000)
 	batch_size = 32
 
 	#normalize
-	inputs = inputs/np.amax(inputs)
-	
+
 	# create model
 	detector = SirenDetection()
-	
+
 	# train	
-	detector.compile(optimizer=tf.keras.optimizers.Adam(),
-		loss=tf.keras.losses.MSE)
+
+	detector.compile(optimizer=tf.keras.optimizers.Adam(0.0001),
+		loss=tf.keras.losses.MSE,
+		metrics=["accuracy"])
 	detector.fit(inputs, outputs, batch_size=batch_size, epochs=1)
 
 	# test
 	inputs, outputs = gen_data(300)
+	print("model accuracy on truth:")
 	detector.evaluate(inputs, outputs)
 
+
+	print("model accuracy on random baseline:")
+	detector.evaluate(inputs, np.random.randint(2, size=outputs.shape))
+
+	print(np.concatenate((np.round(detector(inputs[:batch_size])), outputs[:batch_size].reshape(-1,1)),-1))
 
 if __name__ == '__main__':
 	main()
