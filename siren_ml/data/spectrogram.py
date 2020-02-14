@@ -1,103 +1,32 @@
-import record
+"""This file includes functions which handle spectrograms.
+These classes handle spectrograms which could be a 
+cumulation of many frequencies. These function will
+provide the ability to modify these frequencies on a
+higher level.
+"""
+
 import numpy as np
-import matplotlib
-matplotlib.use("Qt5Agg")
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 #import tensorflow as tf
 import librosa.feature
 import time
-from scipy import signal
-
 import sounddevice as sd
+try:
+	from . import record
+	from . import constants as cn
+except ImportError:
+	import record
+	import constants as cn
 
-default_mel = 128
-default_hop_length = 512
-
-class SpecAnimate():
-	def __init__(self, func, **kwargs):
-		self.func = func
-		z = self.func()
-		self.fig = plt.figure()
-		ax2 = plt.subplot()
-		#ax2.set_ylim(5,120)
-		self.quad1 = ax2.pcolormesh(z)
-
-
-	def _animate(self,iter):
-		z = self.func()
-		self.quad1.set_array(z.ravel())
-		return self.quad1
-
-	def run(self):
-		anim = animation.FuncAnimation(self.fig, self._animate,
-			frames=100,interval=30,blit=False,repeat=True)
-		plt.show()
-
-
-class MelSpectrogram():
-	def __init__(self, n_mels=default_mel, hop_length=default_hop_length):
-		self.recorder = record.AudioRecorder() # real time data
-		self.live_sample_rate = self.recorder.audio.DEFAULT_SAMPLE_RATE
-		self.num_samples = self.recorder.audio.BUFFER_DURATION*self.live_sample_rate
-		self.sample_accum = None
-		self.n_mels = n_mels
-		self.hop_length = hop_length
-
-	def create_ms(self,new_samples=None,sr=None,is_log=False): #using librosa
-		"""
-		if new_samples is None, samples will come from live audio 
-		"""
-		if new_samples is None:
-			new_samples = self.recorder()
-			sr = self.live_sample_rate
-		else:
-			assert not sr is None, "sr, sample rate must be defined if new_samples is specified."
-		
-		spectrogram = librosa.feature.melspectrogram(
-					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=default_hop_length)
-		if is_log:
-			spectrogram = np.log10(spectrogram)
-		return spectrogram
-
-	def accum_live_ms(self, spectrogram_accum_frames=50):
-		while 1:
-			spectrogram = self.create_ms()
-			if self.sample_accum is None:
-				self.sample_accum = spectrogram
-			else:
-				self.sample_accum = np.concatenate((
-						self.sample_accum, spectrogram),1)[:,-spectrogram_accum_frames:]
-			if self.sample_accum.shape[-1] >= spectrogram_accum_frames:
-				break
-
-		return self.sample_accum
-
-class GenerateData():
+class _GenSpectroBase():
 	"""
-	generates siren noise in an environment
-	Accounts for:
-	- Changes in amplitues.
-	- Doppler effect
-	- Echoing
-	- Noisy environments
-		- white noise
-		- structured noise
-	- distractors
-		- non siren audio with similar sound range, different structure
-		- non siren audio with similar structure, different sound
-	- partial occlusions of siren
-		- must have a minimum audible time. 
-	- new siren noise types
-
-	Final test dataset will be real siren audio
-
+	Base class to provide for functionality in generating spectrograms
+	Convert the s
 
 	Technical details:
 		- array is of size [frequency bins, time steps]
 	"""
-	max_amp = 100000000000
-	def __init__(self, orig_spec=None, samplerate=None, time=None, n_mels=default_mel, hop_length=default_hop_length):
+	max_amp = cn.max_amp
+	def __init__(self, orig_spec=None, samplerate=None, time=None, n_mels=cn.default_mel, hop_length=cn.default_hop_length, **kwargs):
 		assert not samplerate is None, "sample rate must be specified"
 		self.time = time
 		self.sr = samplerate
@@ -127,9 +56,8 @@ class GenerateData():
 	@property
 	def mfcc(self):
 		log_mel_spec = librosa.core.power_to_db(self.spec)
-		return librosa.feature.mfcc(S=self.spec)
+		return librosa.feature.mfcc(S=log_mel_spec)
 	
-
 	def convert_melspectrogram_to_time_domain(self, spec=None, n_chunks=3):
 		if spec is None:
 			spec = self.spec
@@ -186,6 +114,7 @@ class GenerateData():
 		return cn, weights
 
 	def create_melspec(self, frequency_func, amplitude_func):
+
 		"""
 		This function will create the spectrogram.
 		The frequency func should take in one value, x for timesteps
@@ -220,13 +149,40 @@ class GenerateData():
 
 		return spec
 
-	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None, verbose=False):
+class GenerateData(_GenSpectroBase):
+	"""
+	generates siren noise in an environment
+	Accounts for:
+	- Changes in amplitues.
+	- Doppler effect
+	- Echoing
+	- Noisy environments
+		- white noise
+		- structured noise
+	- distractors
+		- non siren audio with similar sound range, different structure
+		- non siren audio with similar structure, different sound
+	- partial occlusions of siren
+		- must have a minimum audible time. 
+	- new siren noise types
+	- random filters (masking of frequencies)
+
+	Final test dataset will be real siren audio
+
+
+	Technical details:
+		- array is of size [frequency bins, time steps]
+	"""
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+
+	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None, phase_shift=None, sound_amplitude=None, verbose=False):
 		"""generates the siren over a 2d array, bin size for time and frequency should be given as well
 		this should start out with a sweep  then become more siren like.
 	
 		
 		Args:
-		    doppler (bool): True if want doppler effect
+		    doppler (bool): True if want doppler effect # TBD: add randomization
 		    amp (None, float): amplitude of siren sweep
 		    f (None, float): frequency of siren sweep
 		    offset (None, float): offset o siren sweep
@@ -250,6 +206,8 @@ class GenerateData():
 		amp = amp if not amp is None else rand(200,500)
 		f = f if not f is None else rand(0.25, 4)
 		offset = offset if not offset is None else rand(500,1500)
+		phase_shift = phase_shift if not phase_shift is None else rand(0,2*np.pi)
+		sound_amplitude = sound_amplitude if not sound_amplitude is None else rand(0.001,1)
 
 
 		# get waveform
@@ -270,8 +228,8 @@ class GenerateData():
 		def frequency_func(timesteps):
 			#generate waveform
 			#TBD: save the parameters below into a file when logging (save to database)
-			freq = amp * waveform(2*np.pi*f*timesteps) + offset #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
-
+			freq = amp * waveform(2*np.pi*f*timesteps+phase_shift) + offset #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
+			freq += np.random.normal(size=freq.shape) # add slight noise to freq
 			#Add Doppler effect
 			if doppler:
 				freq = self.add_doppler_effect(freq)
@@ -279,33 +237,46 @@ class GenerateData():
 
 		def amplitude_func(timesteps,freq):
 			#TBD: should randomize this according to distance
-			amps = freq*0+1
+			amps = freq*0+sound_amplitude
 			return amps
 
 		# TBD should keep information about 
 		spec = self.create_melspec(frequency_func, amplitude_func)
 		self.spec +=spec
 
-	def add_noise(self, is_structured=False): 
+	def add_noise(self, max_noise_amount=1, is_structured=False): 
+		# 1 causes 
 		#TBD: allow addition of randomness, and structured randomness.
 		# should include models of environmental factors by default such as wind noise, rain, snow, and other factors that might happen on the roof of a car.
 		# such as impacts in the metal.
 		# also includes car engine nose, and general sounds of a car.
-		self.spec[:25] += np.random.uniform(0, self.max_amp/10)
+		
+		max_noise_amount = max_noise_amount if max_noise_amount <= 1 else 1
+		max_noise_amount = max_noise_amount if max_noise_amount >= 0 else 0
+
+		noise_hidx = self.spec.shape[0]
+
+		max_amp_noise = self.max_amp*max_noise_amount
+
+		low_amp_freq = np.random.uniform(0, max_amp_noise*0.4, size=self.spec[:noise_hidx].shape)
+		
+		mid_amp_freq = np.random.uniform(0, max_amp_noise, size=self.spec[:noise_hidx].shape)
+		mid_amp_freq = np.where(mid_amp_freq>max_amp_noise*0.8, mid_amp_freq, 0)
+		
+		high_amp_freq = np.random.uniform(0, max_amp_noise, size=self.spec[:noise_hidx].shape)
+		high_amp_freq = np.where(high_amp_freq>max_amp_noise*0.95, max_amp_noise, 0)
+
+		self.spec[:noise_hidx] += high_amp_freq + mid_amp_freq + low_amp_freq
 		self.spec = np.maximum(self.spec,0)
 
-
-	def add_doppler_effect(self, arr): #TBD: convert delay to incoming speed, and position
-		size = len(arr)
-		rel_velocity = np.empty(size) #Tracks the relative velocity at each time instant
-		speed = 200 #Change this parameter to experiment with different speeds of the source (siren)
-		dopp_scale = 0.25 #Change this parameter to change how fast the Doppler effect occurs
-		for i in range(size):
-			#Relative velocity roughly follows a sigmoid function
-			rel_velocity[i] = speed*(1/(1+np.exp(dopp_scale*(i-(size/2))))-0.5)
-			#Formula for Doppler effect perceived by the listener
-			arr[i] = arr[i]*(343/(343 - rel_velocity[i]))
-		return arr
+	def add_doppler_effect(self, freq, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
+		"""Speed is in meters per second
+		TBD: random walk from current start.
+			- specify direction of increase or decrease
+		"""
+		speed_of_sound = 343
+		freq = (speed_of_sound+observer_velocity)/(speed_of_sound-source_speed)*freq
+		return freq
 
 	def add_echoing_effect(self, sd_distance, deflect_ang, dd_distance): 
 		#sd_distance is the source to deflection distance
@@ -315,29 +286,81 @@ class GenerateData():
 		# this could be done in a finite state manner, where we can add more for multiple signals and complexity.
 		pass
 
-	def add_partial_occlusions(self, freq, min_show_period):
+	# partial occlusions can be used for spec and freq
+	def add_partial_occlusions(self, spec, min_show_period):
 		# min_show period is the amount of frames needed to show the the siren in a continuous amount of time.
-		return freq
-
+		return spec
 
 	def sound_diffraction(self, matrix):
 		# deffracts the sound as if going through a medium.
 		# similar to going into water.
 		pass
 
+class LiveMelSpectrogram():
+	def __init__(self, n_mels=cn.default_mel, hop_length=cn.default_hop_length):
+		self.recorder = record.AudioRecorder() # real time data
+		self.live_sample_rate = self.recorder.audio.DEFAULT_SAMPLE_RATE
+		self.num_samples = self.recorder.audio.BUFFER_DURATION*self.live_sample_rate
+		self.sample_accum = None
+		self.n_mels = n_mels
+		self.hop_length = hop_length
+
+	def create_ms(self,new_samples=None,sr=None,is_log=False,is_mfcc=False): #using librosa
+		"""
+		if new_samples is None, samples will come from live audio 
+		"""
+		if new_samples is None:
+			new_samples = self.recorder()
+			sr = self.live_sample_rate
+		else:
+			assert not sr is None, "sr, sample rate must be defined if new_samples is specified."
+		
+		spectrogram = librosa.feature.melspectrogram(
+					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=cn.default_hop_length)
+		if is_log or is_mfcc:
+			spectrogram = librosa.core.power_to_db(spectrogram)
+
+		if is_mfcc:
+			spectrogram = librosa.feature.mfcc(S=spectrogram)
+
+		return spectrogram
+
+	def accum_live_ms(self, spectrogram_accum_frames=50):
+		while 1:
+			spectrogram = self.create_ms()
+			if self.sample_accum is None:
+				self.sample_accum = spectrogram
+			else:
+				self.sample_accum = np.concatenate((
+						self.sample_accum, spectrogram),1)[:,-spectrogram_accum_frames:]
+			if self.sample_accum.shape[-1] >= spectrogram_accum_frames:
+				break
+
+		return self.sample_accum
+
+	
+
+
+
 
 
 def main():
-	gd = GenerateData(samplerate=48000, time=4)
+	import matplotlib.pyplot as plt
+	import soundfile as sf
+	gd = GenerateData(samplerate=16000, time=0.5)
 	gd.generate_siren()
-	#gd.add_noise()
+	gd.add_noise(np.abs(np.random.normal()))
 	#print("converting...")
 	#time_arr = gd.convert_melspectrogram_to_time_domain()
 	#time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
 	#print("playing...")
 	#sd.play(time_arr, gd.sr, blocking=True)
+	#sf.write("test.wav", time_arr, gd.sr)
+	
+
 	plt.pcolormesh(gd.spec)
 	plt.show()
+
 
 def test_melconversions():
 	spec = MelSpectrogram()
@@ -368,12 +391,10 @@ def test_melconversions():
 	plt.pcolormesh(spectrogram)
 	plt.show()
 	###
-
 	func = GenerateData(spectrogram, sr)
 	print("Converting back")
-	sd.play(func.convert_melspectrogram_to_time_domain(), blocking=True)
+	sound = func.convert_melspectrogram_to_time_domain()
+	sd.play(sound, blocking=True)
 	#"""
-
 if __name__ == '__main__':
 	main()
-	#test_melconversions()

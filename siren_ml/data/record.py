@@ -9,8 +9,10 @@ Required:
 
 import numpy as np
 import sounddevice as sd
-from objects import AudioObject
-
+try:
+	from .objects import AudioObject
+except ImportError:
+	from objects import AudioObject
 class AudioRecorder:
 
 	def __call__(self):
