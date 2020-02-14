@@ -56,7 +56,7 @@ class _GenSpectroBase():
 	@property
 	def mfcc(self):
 		log_mel_spec = librosa.core.power_to_db(self.spec)
-		return librosa.feature.mfcc(S=self.spec)
+		return librosa.feature.mfcc(S=log_mel_spec)
 	
 	def convert_melspectrogram_to_time_domain(self, spec=None, n_chunks=3):
 		if spec is None:
@@ -176,7 +176,7 @@ class GenerateData(_GenSpectroBase):
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
-	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None, phase_shift=None, verbose=False):
+	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None, phase_shift=None, sound_amplitude=None, verbose=False):
 		"""generates the siren over a 2d array, bin size for time and frequency should be given as well
 		this should start out with a sweep  then become more siren like.
 	
@@ -207,6 +207,7 @@ class GenerateData(_GenSpectroBase):
 		f = f if not f is None else rand(0.25, 4)
 		offset = offset if not offset is None else rand(500,1500)
 		phase_shift = phase_shift if not phase_shift is None else rand(0,2*np.pi)
+		sound_amplitude = sound_amplitude if not sound_amplitude is None else rand(0.001,1)
 
 
 		# get waveform
@@ -236,7 +237,7 @@ class GenerateData(_GenSpectroBase):
 
 		def amplitude_func(timesteps,freq):
 			#TBD: should randomize this according to distance
-			amps = freq*0+1
+			amps = freq*0+sound_amplitude
 			return amps
 
 		# TBD should keep information about 
@@ -304,7 +305,7 @@ class LiveMelSpectrogram():
 		self.n_mels = n_mels
 		self.hop_length = hop_length
 
-	def create_ms(self,new_samples=None,sr=None,is_log=False): #using librosa
+	def create_ms(self,new_samples=None,sr=None,is_log=False,is_mfcc=False): #using librosa
 		"""
 		if new_samples is None, samples will come from live audio 
 		"""
@@ -316,8 +317,12 @@ class LiveMelSpectrogram():
 		
 		spectrogram = librosa.feature.melspectrogram(
 					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=cn.default_hop_length)
-		if is_log:
-			spectrogram = np.log10(spectrogram)
+		if is_log or is_mfcc:
+			spectrogram = librosa.core.power_to_db(spectrogram)
+
+		if is_mfcc:
+			spectrogram = librosa.feature.mfcc(S=spectrogram)
+
 		return spectrogram
 
 	def accum_live_ms(self, spectrogram_accum_frames=50):
