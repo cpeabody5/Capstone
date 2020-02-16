@@ -4,7 +4,6 @@ import tensorflow as tf
 
 from data import LiveMelSpectrogram
 from data import GenerateData
-
 from model import SirenDetection
 import time
 
@@ -19,7 +18,7 @@ def gen_data(x=10000):
 		MelData = GenerateData(samplerate=16000, time=0.5)
 		if np.random.randint(2):
 			MelData.generate_siren()
-		MelData.add_noise(np.abs(np.random.normal(0,0.5)))
+		MelData.add_noise(np.abs(np.random.normal(0,0.25)))
 		spec = MelData.mfcc
 		label = MelData.label #TBD: this should be length of time series, which indicates siren at each point
 		if dset is None:
@@ -61,7 +60,8 @@ def test():
 	spec = LiveMelSpectrogram()
 	while 1:
 		live_input = np.expand_dims(spec.create_ms(is_mfcc=True),0)
-		print(live_input.shape, inputs.shape)
+		
+		#print(np.amax(live_input), max_val)
 		print(np.round(detector(live_input/max_val).numpy()))
 
 def main():
@@ -77,7 +77,7 @@ def train():
 
 	if (not os.path.exists(saved_data_file)) or (not is_use_saved):
 		# get data (TBD: should use tf.data.object.)
-		inputs, outputs = gen_data(250000)
+		inputs, outputs = gen_data(10000)
 		np.savez(saved_data_file, 
 				inputs=inputs,
 				outputs=outputs)

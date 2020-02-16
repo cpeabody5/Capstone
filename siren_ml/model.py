@@ -29,7 +29,6 @@ def main():
 	#y = tf.one_hot(y,10).numpy()
 	#yt = tf.one_hot(yt,10).numpy()
 
-
 	detector = SirenDetection(10)
 
 	detector.compile(optimizer=tf.keras.optimizers.Adam(),
@@ -42,7 +41,6 @@ def main():
 	np.random.shuffle(yt)
 	detector.evaluate(xt,yt)
 
-
 def test1():
 	inputs = np.random.normal(size=(10,5,5))
 	outputs = np.random.normal(size =(10,2))
@@ -54,5 +52,6 @@ def test1():
 	detector.fit(inputs, outputs, batch_size=2, epochs=1)
 	w2 = detector.get_weights()
 	assert not (w1[0]==w2[0]).all(), "weights are not being trained"
+
 if __name__ == '__main__':
 	main()

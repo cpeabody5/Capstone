@@ -13,14 +13,19 @@ import sounddevice as sd
 try:
 	from . import record
 	from . import constants as cn
+	from . import frequency as fr
+	from . import spectrogram_functions as sf
 except ImportError:
 	import record
 	import constants as cn
+	import frequency as fr
+	import spectrogram_functions as sf
+
 
 class _GenSpectroBase():
 	"""
 	Base class to provide for functionality in generating spectrograms
-	Convert the s
+	These are the functionalities for, given frequencies and amplitudes, create a spectrogram
 
 	Technical details:
 		- array is of size [frequency bins, time steps]
@@ -133,9 +138,6 @@ class _GenSpectroBase():
 
 		amplitudes = amplitude_func(self.timesteps, frequencies)
 
-		#normalize the amplitudes:
-		amplitudes = amplitudes/np.nanmax(amplitudes)
-
 		# filter out the nans and apply amplitudes
 		w2 = np.where(np.isnan(b1),0, (1-w1)*amplitudes)
 		w1 = np.where(np.isnan(b1),0, w1*amplitudes)
@@ -169,19 +171,18 @@ class GenerateData(_GenSpectroBase):
 
 	Final test dataset will be real siren audio
 
-
 	Technical details:
 		- array is of size [frequency bins, time steps]
 	"""
 	def __init__(self, **kwargs):
 		super().__init__(**kwargs)
 
-	def generate_siren(self, doppler=False, amp=None, f=None, offset=None, waveform=None, phase_shift=None, sound_amplitude=None, verbose=False):
+	def generate_siren(self, doppler=False, **kwargs):
 		"""generates the siren over a 2d array, bin size for time and frequency should be given as well
 		this should start out with a sweep  then become more siren like.
 	
 		
-		Args:
+		Kwargs:
 		    doppler (bool): True if want doppler effect # TBD: add randomization
 		    amp (None, float): amplitude of siren sweep
 		    f (None, float): frequency of siren sweep
@@ -190,58 +191,11 @@ class GenerateData(_GenSpectroBase):
 		"""
 		self.label = np.ones(())
 
-		waveform_choices = {
-			"cos":np.cos, 
-			"square":lambda x: np.round(((np.cos(x)+1)+0.01*np.sin(x))/2),
-			}
-		
-
-		# NOTE: min and max vals can be constants as well to ony need 1 random function
-		def rand(mini=0, maxi=1):
-			# random selection funcion
-			return (maxi - mini) * np.random.random() + mini
-
-		# set siren parameters, will be amp*waveform(2*pi*f*t)+offset
-		waveform = waveform if not waveform is None else np.random.choice(list(waveform_choices.keys()))
-		amp = amp if not amp is None else rand(200,500)
-		f = f if not f is None else rand(0.25, 4)
-		offset = offset if not offset is None else rand(500,1500)
-		phase_shift = phase_shift if not phase_shift is None else rand(0,2*np.pi)
-		sound_amplitude = sound_amplitude if not sound_amplitude is None else rand(0.001,1)
-
-
-		# get waveform
-		if not waveform in waveform_choices:
-			raise Exception("warning, waveform unknown")
-		waveform = waveform_choices[waveform]
-		
-		# define these here so they can be extracted for later.
-		self.freq_params = {
-				"f":f,
-				"amp":amp,
-				"offset":offset,
-				"waveform":waveform
-			}
-		if verbose:
-			print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
-		
-		def frequency_func(timesteps):
-			#generate waveform
-			#TBD: save the parameters below into a file when logging (save to database)
-			freq = amp * waveform(2*np.pi*f*timesteps+phase_shift) + offset #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
-			freq += np.random.normal(size=freq.shape) # add slight noise to freq
-			#Add Doppler effect
-			if doppler:
-				freq = self.add_doppler_effect(freq)
-			return freq
-
-		def amplitude_func(timesteps,freq):
-			#TBD: should randomize this according to distance
-			amps = freq*0+sound_amplitude
-			return amps
-
+		siren = fr.SirenFreq(**kwargs)
+		if doppler:
+			siren.add_doppler_effect()
 		# TBD should keep information about 
-		spec = self.create_melspec(frequency_func, amplitude_func)
+		spec = self.create_melspec(siren.frequency_func, siren.amplitude_func)
 		self.spec +=spec
 
 	def add_noise(self, max_noise_amount=1, is_structured=False): 
@@ -253,26 +207,19 @@ class GenerateData(_GenSpectroBase):
 		
 		max_noise_amount = max_noise_amount if max_noise_amount <= 1 else 1
 		max_noise_amount = max_noise_amount if max_noise_amount >= 0 else 0
-
-		noise_hidx = self.spec.shape[0]
-
 		max_amp_noise = self.max_amp*max_noise_amount
 
-		low_amp_freq = np.random.uniform(0, max_amp_noise*0.4, size=self.spec[:noise_hidx].shape)
-		
-		mid_amp_freq = np.random.uniform(0, max_amp_noise, size=self.spec[:noise_hidx].shape)
-		mid_amp_freq = np.where(mid_amp_freq>max_amp_noise*0.8, mid_amp_freq, 0)
-		
-		high_amp_freq = np.random.uniform(0, max_amp_noise, size=self.spec[:noise_hidx].shape)
-		high_amp_freq = np.where(high_amp_freq>max_amp_noise*0.95, max_amp_noise, 0)
 
-		self.spec[:noise_hidx] += high_amp_freq + mid_amp_freq + low_amp_freq
+		noise = sf.static_noise(self.spec.shape, low=0.4, mid=0.8, high=0.95)*max_amp_noise
+
+		self.spec += noise
 		self.spec = np.maximum(self.spec,0)
 
 	def add_doppler_effect(self, freq, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
 		"""Speed is in meters per second
-		TBD: random walk from current start.
-			- specify direction of increase or decrease
+		TBD: this needs to take into account distance
+			An siren moving 100km towards you -> directly beside you -> away is different
+			The doppler should be a vector which points towards you, not the direction the vehicle is going.
 		"""
 		speed_of_sound = 343
 		freq = (speed_of_sound+observer_velocity)/(speed_of_sound-source_speed)*freq
@@ -297,8 +244,8 @@ class GenerateData(_GenSpectroBase):
 		pass
 
 class LiveMelSpectrogram():
-	def __init__(self, n_mels=cn.default_mel, hop_length=cn.default_hop_length):
-		self.recorder = record.AudioRecorder() # real time data
+	def __init__(self, sr=None, t= None, n_mels=cn.default_mel, hop_length=cn.default_hop_length):
+		self.recorder = record.AudioRecorder(sr, t) # real time data
 		self.live_sample_rate = self.recorder.audio.DEFAULT_SAMPLE_RATE
 		self.num_samples = self.recorder.audio.BUFFER_DURATION*self.live_sample_rate
 		self.sample_accum = None
@@ -317,6 +264,7 @@ class LiveMelSpectrogram():
 		
 		spectrogram = librosa.feature.melspectrogram(
 					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=cn.default_hop_length)
+		
 		if is_log or is_mfcc:
 			spectrogram = librosa.core.power_to_db(spectrogram)
 
@@ -338,29 +286,20 @@ class LiveMelSpectrogram():
 
 		return self.sample_accum
 
-	
-
-
-
 
 
 def main():
 	import matplotlib.pyplot as plt
 	import soundfile as sf
-	gd = GenerateData(samplerate=16000, time=0.5)
+	gd = GenerateData(samplerate=16000, time=5)
 	gd.generate_siren()
-	gd.add_noise(np.abs(np.random.normal()))
-	#print("converting...")
-	#time_arr = gd.convert_melspectrogram_to_time_domain()
-	#time_arr = time_arr / max(time_arr) 	# Normalize values to [-1, 1] to protect your ears and speakers
-	#print("playing...")
-	#sd.play(time_arr, gd.sr, blocking=True)
-	#sf.write("test.wav", time_arr, gd.sr)
+	gd.add_noise(np.abs(np.random.normal(0,0.2)))
 	
+	# create save spectrogram and image for analysis on 
+	# this generation
 
 	plt.pcolormesh(gd.spec)
 	plt.show()
-
 
 def test_melconversions():
 	spec = MelSpectrogram()
@@ -396,5 +335,13 @@ def test_melconversions():
 	sound = func.convert_melspectrogram_to_time_domain()
 	sd.play(sound, blocking=True)
 	#"""
+
+def view_live_spectrogram():
+	from plot import SpecAnimate
+	spec = LiveMelSpectrogram(16000, 0.05)
+	func = lambda x=None: np.log10(spec.accum_live_ms())
+
+	plot = SpecAnimate(func)
+	plot.run()
 if __name__ == '__main__':
-	main()
+	view_live_spectrogram()

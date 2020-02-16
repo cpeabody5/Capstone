@@ -2,10 +2,13 @@
 and effects that would be applied directly on one frequency 
 structure.
 """
-try
+import numpy as np
+try:
 	from . import constants as cn
+	from . import frequency_functions as ff
 except ImportError:
 	import constants as cn
+	import frequency_functions as ff
 
 
 class _GenerateFreqMeta(type):
@@ -23,18 +26,15 @@ class _GenerateFreqMeta(type):
 
 class _GenerateFreq(metaclass=_GenerateFreqMeta):
 	#inhereted class
-	def random(self):
-		# TBD: This randomizes a value according to the range.
-		pass
-
-	def add_doppler_effect(self, freq, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
+	def add_doppler_effect(self, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
 		"""Speed is in meters per second
-		TBD: random walk from current start.
 			- specify direction of increase or decrease
 		"""
 		speed_of_sound = 343
-		freq = (speed_of_sound+observer_velocity)/(speed_of_sound-source_speed)*freq
-		return freq
+		def frequency(**kwargs):
+			freq = self.frequency(**kwargs)
+			freq = np.where(freq>=0, (speed_of_sound+observer_velocity)/(speed_of_sound-source_speed)*freq, freq)
+		self.frequency = frequency			
 
 	def add_echoing_effect(self, sd_distance, deflect_ang, dd_distance): 
 		#sd_distance is the source to deflection distance
@@ -54,14 +54,47 @@ class _GenerateFreq(metaclass=_GenerateFreqMeta):
 		pass
 
 class SirenFreq(_GenerateFreq):
+
+	waveform_choices = {
+		"cos":np.cos, 
+		"square":lambda x: np.round(((np.cos(x)+1)+0.01*np.sin(x))/2),
+		}
+
+	def __init__(self, amp=[200,500], f=[0.25,4], offset=[500,1500], waveform=None, phase_shift=[0,2*np.pi], sound_amplitude=[0.001,1], verbose=False, **kwargs):
+		"""initializes a siren signal.
+	
+		
+		Args:
+		    doppler (bool): True if want doppler effect # TBD: add randomization
+		    amp (None, float): amplitude of siren sweep
+		    f (None, float): frequency of siren sweep
+		    offset (None, float): offset o siren sweep
+		    waveform (None, string): see waveform_choices for list of available waveforms
+		"""
+		# set siren parameters, will be amp*waveform(2*pi*f*t)+offset
+		waveform = waveform if not waveform is None else np.random.choice(list(self.waveform_choices.keys()))
+		self.frequency = ff.Wave(waveform=self.waveform_choices[waveform], amp=amp, f=f, phase_shift=phase_shift, offset=offset)
+		
+		# save parameters
+		self.freq_params = {"f":f, "amp":amp, "offset":offset, "waveform":waveform, "phase_shift":phase_shift}
+		
+		# define these here so they can be extracted for later.
+		if verbose:
+			print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
+
+	def amplitude_func(self, timesteps, freq):
+		#TBD: should randomize this according to distance
+		gain = ff.choose_random_in_range([0.000001,1])
+		gain = np.ones(freq.shape)*gain
+		amps = ff.choose_random_in_range([gain*0.7,gain*1.3])
+		amps = np.minimum(amps, 1)
+		amps = np.maximum(amps, 0)
+		return amps
+
 	def frequency_func(self, timesteps):
 		#generate waveform
 		#TBD: save the parameters below into a file when logging (save to database)
-		freq = amp * waveform(2*np.pi*f*timesteps+phase_shift) + offset #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
-
-		#Add Doppler effect
-		if doppler:
-			freq = self.add_doppler_effect(freq)
+		freq = self.frequency(timesteps) #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
 		return freq
 
 
