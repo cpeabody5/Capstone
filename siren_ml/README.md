@@ -18,12 +18,12 @@
 		- Though it was mentioned that in domain randomization, that can train on randomized objects, it seems that for this noise, we need to but in the basic structure.
 
 ### Experiment 3.1 Simulator Moise is Too Naive
-Real Recorded Random Wind Noise
 ![Real Recorded Random Wind Noise](experiments/real_noise_data.png)
+*Real Recorded Random Wind Noise*
 
 
-Current Simulator Noise Generation
 ![Current Simulator Noise Generation](experiments/naive_gen_noise_data.png)
+*Current Simulator Noise Generation*
 
 Next Step 3.1.1: Try to get real noise samples, agument them and use them as noise. 
 
