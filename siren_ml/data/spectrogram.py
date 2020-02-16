@@ -292,7 +292,7 @@ def main():
 	import matplotlib.pyplot as plt
 	import soundfile as sf
 	gd = GenerateData(samplerate=16000, time=5)
-	gd.generate_siren()
+	#gd.generate_siren()
 	gd.add_noise(np.abs(np.random.normal(0,0.2)))
 	
 	# create save spectrogram and image for analysis on 
@@ -337,11 +337,14 @@ def test_melconversions():
 	#"""
 
 def view_live_spectrogram():
+	import matplotlib.pyplot as plt
 	from plot import SpecAnimate
-	spec = LiveMelSpectrogram(16000, 0.05)
-	func = lambda x=None: np.log10(spec.accum_live_ms())
+	spec = LiveMelSpectrogram(16000, 0.5)
+	func = lambda x=None: np.log10(spec.create_ms())
+	plt.pcolormesh(func())
+	plt.show()
 
-	plot = SpecAnimate(func)
-	plot.run()
+	#plot = SpecAnimate(func)
+	#plot.run()
 if __name__ == '__main__':
-	view_live_spectrogram()
+	main()
