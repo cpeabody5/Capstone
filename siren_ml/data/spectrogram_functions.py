@@ -1,5 +1,6 @@
 import numpy as np 
 import librosa.feature
+import librosa
 import time
 import sounddevice as sd
 import pathlib
@@ -135,25 +136,59 @@ class LiveMelSpectrogram():
 
 		return self.sample_accum
 
-def main():
-	out = real_noise((128, 30))
-	plt.pcolormesh(out)
-	plt.show()
 
+## Noise comparisons
+def view_gen_spectrogram():
+	from plot import SpecAnimate
+	func = lambda x=None: librosa.core.power_to_db(real_noise((128, 30)))
+	#plt.pcolormesh()
+	#plt.show()
 
+	plot = SpecAnimate(func)
+	plot.run()
 
 def view_live_spectrogram():
 	from plot import SpecAnimate
 	spec = LiveMelSpectrogram(16000, 0.5)
-	func = lambda x=None: np.log10(spec.create_ms())
+	func = lambda x=None: librosa.core.power_to_db(spec.create_ms())
+	#func = lambda x=None: np.log10(spec.create_ms())
 	#plt.pcolormesh(func())
 	#plt.show()
 
 	plot = SpecAnimate(func)
 	plot.run()
 
+def view_both():
+	from plot import SpecAnimate
+	spec = LiveMelSpectrogram(16000, 0.5)
+
+	gen = lambda x=None: librosa.core.power_to_db(real_noise((128, 16)))
+	live = lambda x=None: librosa.core.power_to_db(spec.create_ms())
+
+	gen = lambda x=None: real_noise((128, 16))
+	live = lambda x=None: spec.create_ms()
+
+	def func(x=None):
+		l = live()
+		print(np.amax(l))
+		return np.concatenate((gen(), l),0)
+
+	# print the difference betwen generated and normal
+	#def func(x=None):
+	#	g = gen()
+	#	l = live()
+	#	print(np.amax(np.abs(g)), np.amax(np.abs(l)))
+	#	diff = g-l
+	#	print(np.amax(np.abs(diff)), np.average(np.abs(diff)))
+	#	return diff
+
+
+	#plt.pcolormesh(func())
+	#plt.show()
+	plot = SpecAnimate(func)
+	plot.run()	
 
 
 
 if __name__ == '__main__':
-	main()
+	view_both()

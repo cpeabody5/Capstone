@@ -86,7 +86,7 @@ class SirenFreq(_GenerateFreq):
 		#TBD: should randomize this according to distance
 		gain = ff.choose_random_in_range([0.000001,1])
 		gain = np.ones(freq.shape)*gain
-		amps = ff.choose_random_in_range([gain*0.7,gain*1.3])
+		amps = ff.choose_random_in_range([gain*0.7,gain*1.3]) #noises with 0.3 spread
 		amps = np.minimum(amps, 1)
 		amps = np.maximum(amps, 0)
 		return amps

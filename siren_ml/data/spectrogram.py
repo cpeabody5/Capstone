@@ -213,7 +213,7 @@ class GenerateData(_GenSpectroBase):
 		noise = sf.real_noise(self.spec.shape)
 
 		self.spec += noise
-		self.spec = np.maximum(self.spec,0)
+		#self.spec = np.maximum(self.spec,0)
 
 	def add_doppler_effect(self, freq, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
 		"""Speed is in meters per second
@@ -248,13 +248,13 @@ def main():
 	import matplotlib.pyplot as plt
 	import soundfile as sf
 	gd = GenerateData(samplerate=16000, time=5)
-	#gd.generate_siren()
-	gd.add_noise(np.abs(np.random.normal(0,0.2)))
+	gd.generate_siren()
+	gd.add_noise()
 	
 	# create save spectrogram and image for analysis on 
 	# this generation
 
-	plt.pcolormesh(gd.spec)
+	plt.pcolormesh(librosa.core.power_to_db(gd.spec))
 	plt.show()
 
 def test_melconversions():
@@ -293,4 +293,4 @@ def test_melconversions():
 	#"""
 
 if __name__ == '__main__':
-	test_melconversions()
+	main()
