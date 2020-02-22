@@ -10,11 +10,13 @@ import sounddevice as sd
 if not __name__ == '__main__':
 	from . import record
 	from .plot import SpecAnimate 
-	from .spectrogram import GenerateData, LiveMelSpectrogram
+	from .spectrogram import GenerateData
+	from .spectrogram_functions import LiveMelSpectrogram
 else:
 	import record
 	from plot import SpecAnimate 
-	from spectrogram import GenerateData, LiveMelSpectrogram
+	from spectrogram import GenerateData
+	from .spectrogram_functions import LiveMelSpectrogram
 
 
 

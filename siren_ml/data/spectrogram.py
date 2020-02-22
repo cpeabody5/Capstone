@@ -209,8 +209,8 @@ class GenerateData(_GenSpectroBase):
 		max_noise_amount = max_noise_amount if max_noise_amount >= 0 else 0
 		max_amp_noise = self.max_amp*max_noise_amount
 
-
-		noise = sf.static_noise(self.spec.shape, low=0.4, mid=0.8, high=0.95)*max_amp_noise
+		#noise = sf.static_noise(self.spec.shape, low=0.4, mid=0.8, high=0.95)*max_amp_noise
+		noise = sf.real_noise(self.spec.shape)
 
 		self.spec += noise
 		self.spec = np.maximum(self.spec,0)
@@ -242,50 +242,6 @@ class GenerateData(_GenSpectroBase):
 		# deffracts the sound as if going through a medium.
 		# similar to going into water.
 		pass
-
-class LiveMelSpectrogram():
-	def __init__(self, sr=None, t= None, n_mels=cn.default_mel, hop_length=cn.default_hop_length):
-		self.recorder = record.AudioRecorder(sr, t) # real time data
-		self.live_sample_rate = self.recorder.audio.DEFAULT_SAMPLE_RATE
-		self.num_samples = self.recorder.audio.BUFFER_DURATION*self.live_sample_rate
-		self.sample_accum = None
-		self.n_mels = n_mels
-		self.hop_length = hop_length
-
-	def create_ms(self,new_samples=None,sr=None,is_log=False,is_mfcc=False): #using librosa
-		"""
-		if new_samples is None, samples will come from live audio 
-		"""
-		if new_samples is None:
-			new_samples = self.recorder()
-			sr = self.live_sample_rate
-		else:
-			assert not sr is None, "sr, sample rate must be defined if new_samples is specified."
-		
-		spectrogram = librosa.feature.melspectrogram(
-					y=new_samples, sr=sr, n_mels=self.n_mels, hop_length=cn.default_hop_length)
-		
-		if is_log or is_mfcc:
-			spectrogram = librosa.core.power_to_db(spectrogram)
-
-		if is_mfcc:
-			spectrogram = librosa.feature.mfcc(S=spectrogram)
-
-		return spectrogram
-
-	def accum_live_ms(self, spectrogram_accum_frames=50):
-		while 1:
-			spectrogram = self.create_ms()
-			if self.sample_accum is None:
-				self.sample_accum = spectrogram
-			else:
-				self.sample_accum = np.concatenate((
-						self.sample_accum, spectrogram),1)[:,-spectrogram_accum_frames:]
-			if self.sample_accum.shape[-1] >= spectrogram_accum_frames:
-				break
-
-		return self.sample_accum
-
 
 
 def main():
@@ -336,15 +292,5 @@ def test_melconversions():
 	sd.play(sound, blocking=True)
 	#"""
 
-def view_live_spectrogram():
-	import matplotlib.pyplot as plt
-	from plot import SpecAnimate
-	spec = LiveMelSpectrogram(16000, 0.5)
-	func = lambda x=None: np.log10(spec.create_ms())
-	plt.pcolormesh(func())
-	plt.show()
-
-	#plot = SpecAnimate(func)
-	#plot.run()
 if __name__ == '__main__':
-	main()
+	test_melconversions()
