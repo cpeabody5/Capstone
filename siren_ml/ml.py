@@ -48,7 +48,7 @@ def test():
 	detector = SirenDetection()
 
 	# load weights
-	inputs, actual = gen_data(10000)
+	inputs, actual = gen_data(3)
 	detector(inputs) # tf requires detector to be run once, run for shape only
 	detector.load_weights(save_file)
 	

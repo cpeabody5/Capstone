@@ -198,7 +198,8 @@ class GenerateData(_GenSpectroBase):
 		spec = self.create_melspec(siren.frequency_func, siren.amplitude_func)
 		self.spec +=spec
 
-	def add_noise(self, max_noise_amount=1, is_structured=False): 
+	def add_noise(self, max_noise_amount=1, is_structured=0, is_dopper_structured=False):
+		# is structured is the max additions to structured noise 
 		# 1 causes 
 		#TBD: allow addition of randomness, and structured randomness.
 		# should include models of environmental factors by default such as wind noise, rain, snow, and other factors that might happen on the roof of a car.
@@ -211,8 +212,16 @@ class GenerateData(_GenSpectroBase):
 
 		#noise = sf.static_noise(self.spec.shape, low=0.4, mid=0.8, high=0.95)*max_amp_noise
 		noise = sf.real_noise(self.spec.shape)
-
 		self.spec += noise
+		if is_structured:
+			for i in range(np.random.randint(0,is_structured)):
+				structured_noise = fr.StructuredNoise()
+				if is_dopper_structured:
+					structured_noise.add_doppler_effect()
+				# TBD should add some randomization?
+				structured_noise_spec = self.create_melspec(structured_noise.frequency_func, structured_noise.amplitude_func)
+				self.spec += structured_noise_spec
+
 		#self.spec = np.maximum(self.spec,0)
 
 	def add_doppler_effect(self, freq, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
@@ -247,15 +256,20 @@ class GenerateData(_GenSpectroBase):
 def main():
 	import matplotlib.pyplot as plt
 	import soundfile as sf
-	gd = GenerateData(samplerate=16000, time=5)
-	gd.generate_siren()
-	gd.add_noise()
-	
+	from plot import SpecAnimate
+
+	def func(x=None):
+		gd = GenerateData(samplerate=16000, time=4)
+		gd.generate_siren()
+		gd.add_noise()
+		return librosa.core.power_to_db(gd.spec)
 	# create save spectrogram and image for analysis on 
 	# this generation
 
-	plt.pcolormesh(librosa.core.power_to_db(gd.spec))
-	plt.show()
+	#plt.pcolormesh(librosa.core.power_to_db(gd.spec))
+	#plt.show()
+	plot = SpecAnimate(func)
+	plot.run(500)
 
 def test_melconversions():
 	spec = MelSpectrogram()

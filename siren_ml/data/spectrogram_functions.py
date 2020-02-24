@@ -149,8 +149,8 @@ def view_gen_spectrogram():
 
 def view_live_spectrogram():
 	from plot import SpecAnimate
-	spec = LiveMelSpectrogram(16000, 0.5)
-	func = lambda x=None: librosa.core.power_to_db(spec.create_ms())
+	spec = LiveMelSpectrogram(16000, 0.1)
+	func = lambda x=None: librosa.core.power_to_db(spec.accum_live_ms())
 	#func = lambda x=None: np.log10(spec.create_ms())
 	#plt.pcolormesh(func())
 	#plt.show()
@@ -170,7 +170,6 @@ def view_both():
 
 	def func(x=None):
 		l = live()
-		print(np.amax(l))
 		return np.concatenate((gen(), l),0)
 
 	# print the difference betwen generated and normal
@@ -191,4 +190,4 @@ def view_both():
 
 
 if __name__ == '__main__':
-	view_both()
+	view_live_spectrogram()

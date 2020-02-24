@@ -18,7 +18,8 @@ class SpecAnimate():
 		self.quad1.set_array(z.ravel())
 		return self.quad1
 
-	def run(self):
+	def run(self, interval=30):
+		#interval is the delay in miliseconds
 		anim = animation.FuncAnimation(self.fig, self._animate,
-			frames=100,interval=30,blit=False,repeat=True)
+			frames=100,interval=interval,blit=False,repeat=True)
 		plt.show()

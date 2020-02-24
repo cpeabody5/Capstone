@@ -34,5 +34,10 @@ Bottom is generated noise.
 Next Step 3.1.2: We can try doing a naive model of noise. Where we can get the max and min values of given, along with the max and min changes between times. This way, we can model specific sounds. To prevent us from labeling every detail, we can try separating by a rate of change threshold and probability.
 
 
-### Experiment 3.2 Siren Counter Examples
+### Experiment 3.2 Siren Counter Examples TBD
 The Model is now tricked by counter examples in noise, such as single frequencies. We need to counter this by adding in structured noise. 
+
+## Experiment 4
+Since our model takes in the samples at 0.5 second increments, and our min frequency for a siren to be known as a siren worst case is 0.25Hz -> 4 sec, this means that we'll need an energy based approach - with decaying function after the network. 
+
+Overall, if the last 3/8  were detections, then there might be a siren. We can also use an exponentially decaying spiking method.

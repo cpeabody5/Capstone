@@ -14,6 +14,7 @@ except ImportError:
 class _GenerateFreqMeta(type):
 	#makes sure that the required attributes and methods are specified.
 	def __new__(cls, name, bases, body):
+		print(body, bases)
 		required_methods = {
 			"amplitude_func":"amplitudes must be specified and takes in timesteps in seconds and frequency in Hz, should return a matrix of the same shape as the frequency input",
 			"frequency_func":"This should take in the timestep input, in seconds and output a 2D matrix of [frequency traversal, frequency value]",
@@ -24,7 +25,7 @@ class _GenerateFreqMeta(type):
 		return super().__new__(cls, name, bases, body)
 
 
-class _GenerateFreq(metaclass=_GenerateFreqMeta):
+class _GenerateFreq():#metaclass=_GenerateFreqMeta):
 	#inhereted class
 	def add_doppler_effect(self, source_speed=100/3.6, observer_velocity=60/3.6): #TBD: convert delay to incoming speed, and position
 		"""Speed is in meters per second
@@ -55,12 +56,9 @@ class _GenerateFreq(metaclass=_GenerateFreqMeta):
 
 class SirenFreq(_GenerateFreq):
 
-	waveform_choices = {
-		"cos":np.cos, 
-		"square":lambda x: np.round(((np.cos(x)+1)+0.01*np.sin(x))/2),
-		}
-
-	def __init__(self, amp=[200,500], f=[0.25,4], offset=[500,1500], waveform=None, phase_shift=[0,2*np.pi], sound_amplitude=[0.001,1], verbose=False, **kwargs):
+	def __init__(self, amp=cn.siren_amp, f=cn.siren_f, offset=cn.siren_offset, 
+		waveform=cn.siren_waveform, phase_shift=cn.phase_shift, sound_amplitude=cn.sound_amplitude, 
+		verbose=False, **kwargs):
 		"""initializes a siren signal.
 	
 		
@@ -69,22 +67,31 @@ class SirenFreq(_GenerateFreq):
 		    amp (None, float): amplitude of siren sweep
 		    f (None, float): frequency of siren sweep
 		    offset (None, float): offset o siren sweep
-		    waveform (None, string): see waveform_choices for list of available waveforms
+		    waveform (None, string): see waveform_choices for list of available waveforms, should be a stric to choose from there.
 		"""
 		# set siren parameters, will be amp*waveform(2*pi*f*t)+offset
-		waveform = waveform if not waveform is None else np.random.choice(list(self.waveform_choices.keys()))
-		self.frequency = ff.Wave(waveform=self.waveform_choices[waveform], amp=amp, f=f, phase_shift=phase_shift, offset=offset)
+		self.frequency = ff.Wave(waveform=waveform, amp=amp, f=f, phase_shift=phase_shift, offset=offset)
 		
 		# save parameters
-		self.freq_params = {"f":f, "amp":amp, "offset":offset, "waveform":waveform, "phase_shift":phase_shift}
+		self.freq_params = {
+			"f":self.frequency.f, 
+			"amp":self.frequency.amp, 
+			"offset":self.frequency.offset, 
+			"waveform":self.frequency.waveform, 
+			"phase_shift":self.frequency.phase_shift}
 		
 		# define these here so they can be extracted for later.
 		if verbose:
 			print("\tFrequency: {}\n\tAmplitude: {}\n\tOffset: {}\n\tFunc: {}\n---".format(*list(self.freq_params.values())))
 
+		self.sound_amplitude = sound_amplitude
+
 	def amplitude_func(self, timesteps, freq):
 		#TBD: should randomize this according to distance
-		gain = ff.choose_random_in_range([0.000001,1])
+		distributional_sound_amp = lambda size: np.random.normal(0.001, cn.max_amp/12, size=size)
+
+		gain = ff.choose_random_in_range(self.sound_amplitude, 
+			distribution_to_choose=distributional_sound_amp)
 		gain = np.ones(freq.shape)*gain
 		amps = ff.choose_random_in_range([gain*0.7,gain*1.3]) #noises with 0.3 spread
 		amps = np.minimum(amps, 1)
@@ -96,6 +103,45 @@ class SirenFreq(_GenerateFreq):
 		#TBD: save the parameters below into a file when logging (save to database)
 		freq = self.frequency(timesteps) #eg. freq = -500*np.cos(2*np.pi*timesteps*1)+1000
 		return freq
+
+class StructuredNoise(SirenFreq):
+	def __init__(self, min_num_diff=2,**kwargs):
+		"""Create this Noise basically the same way as the 
+		siren specifications, just different parameters.
+
+		Args:
+			min_num_diff: this is the minimum number of different parameters we 
+				can have with the siren The lower the number, the harder it is to distinguish from a siren
+				The higher it is, the easier it is to distinguish.
+
+		"""
+		assert min_num_diff >=1 or min_num_diff<=4, "min_num_diff must be between 1 and 4 (inclusive)"
+		# For this noise
+		choices = ["a", "f", "o", "w"]
+		np.random.shuffle(choices)
+		choices = choices[:min_num_diff]
+
+		amp=cn.siren_amp
+		f=cn.siren_f
+		offset=cn.siren_offset
+		waveform=list(cn.waveform_choices.keys())
+
+		# change selected choices to be different from a siren
+		if "a" in choices:
+			amp = [cn.freq_range[0], cn.siren_amp[0]-1, cn.siren_amp[1]+1, cn.freq_range[0]]
+		if "f" in choices:
+			f = [cn.f_range[0], cn.siren_f[0]-1, cn.siren_f[1]+1, cn.f_range[0]]
+		if "o" in choices:
+			offset = [cn.offset_range[0], cn.siren_offset[0]-1, cn.siren_offset[1]+1, cn.offset_range[0]]
+		if "w" in choices:
+			waveform = [i for i in waveform if not i in cn.siren_waveform]
+
+		phase_shift=cn.phase_shift
+		sound_amplitude=cn.sound_amplitude
+
+		super().__init__(amp=amp, f=f, offset=offset, 
+		waveform=waveform, phase_shift=phase_shift, sound_amplitude=sound_amplitude)
+
 
 
 if __name__ == '__main__':
