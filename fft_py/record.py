@@ -5,11 +5,13 @@ in a shared memory buffer
 Required:
 	numpy
 	sounddevice
+	atexit
 '''
 
 import numpy as np
 import sounddevice as sd
 from objects import AudioObject
+import atexit
 
 class AudioRecorder:
 
@@ -18,7 +20,6 @@ class AudioRecorder:
 			int(self.audio.BUFFER_DURATION * self.audio.fs),
 			dtype='float32', 
 			blocking=True)
-		
 		samples = audio_samples[:,0]
 		samples = np.array(samples, dtype=np.float32)
 		if self.audio.is_shared_memory:
@@ -30,14 +31,14 @@ class AudioRecorder:
 		sd.default.channels = 1
 		self.audio = AudioObject()
 		sd.default.samplerate = self.audio.fs
-		#self.audio.init_mem(create=True)
+		self.audio.init_mem(create=True)
 
 # Run program
 
 def main():
 	recorder = AudioRecorder()
 	while 1:
-		print(recorder())
+		recorder()
 
 if __name__ == '__main__':
 	main()

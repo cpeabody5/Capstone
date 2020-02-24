@@ -1,3 +1,4 @@
+import numpy as np
 def moving_avg(matrix, **kwargs):
 	weights = np.arange(len(matrix))+1
 	weights =[np.power(weights,3)]*len(matrix[0])
