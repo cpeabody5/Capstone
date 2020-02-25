@@ -15,6 +15,7 @@ import time
 import matplotlib.pyplot as plt
 from objects import AudioObject
 import preprocessing
+
 class AudioAnalyzer:
 	# Constants
 	# For plotting
@@ -100,7 +101,7 @@ class AudioAnalyzer:
 					freq_accum = np.concatenate((freq_accum, np.expand_dims(freq,0)), axis = 0)
 					freq_accum = freq_accum[-10:]
 
-			freq_db = prep_func(freq_accum)
+			# freq_db = prep_func(freq_accum)
 
 			# Signal/Time plot
 			if self.realtime:
@@ -129,19 +130,25 @@ class AudioAnalyzer:
 				time.sleep(0.05)
 				window = self.audio.get_window(i, self.WIN_DURATION, self.STEP_SIZE)
 
-	
-	def __init__(self):
+	# param realtime: bool indicating whether to read from file or shared memory
+	def __init__(self, realtime, filename):
 		self.audio = AudioObject()
-		if len(sys.argv) >= 2:
-			self.audio.read_wav(sys.argv[1])
-			self.realtime = False
-		else:
+		self.realtime = realtime
+		if realtime:
 			self.audio.init_mem(create=False)
-			self.realtime = True
-
+		else:
+			self.audio.read_wav(filename)
+	
+	def __call__(self):
 		self.analyze(preprocessing.moving_avg)
 
 
-
 # Run Program
-AudioAnalyzer()
+#	If called with filename argument, reads from file.
+#	If called with no args, reads from shared memory (realtime analysis)
+if len(sys.argv) >= 2:
+	analyzer = AudioAnalyzer(realtime=False, filename=sys.argv[1])
+else:
+	analyzer = AudioAnalyzer(realtime=True)
+
+analyzer()
