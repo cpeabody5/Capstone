@@ -212,15 +212,16 @@ class GenerateData(_GenSpectroBase):
 
 		#noise = sf.static_noise(self.spec.shape, low=0.4, mid=0.8, high=0.95)*max_amp_noise
 		noise = sf.real_noise(self.spec.shape)
-		self.spec += noise
+		self.spec += noise*max_amp_noise
 		if is_structured:
-			for i in range(np.random.randint(0,is_structured)):
+			amount = np.random.randint(0,is_structured+1)
+			for i in range(amount):
 				structured_noise = fr.StructuredNoise()
 				if is_dopper_structured:
 					structured_noise.add_doppler_effect()
 				# TBD should add some randomization?
 				structured_noise_spec = self.create_melspec(structured_noise.frequency_func, structured_noise.amplitude_func)
-				self.spec += structured_noise_spec
+				self.spec += structured_noise_spec*max_amp_noise
 
 		#self.spec = np.maximum(self.spec,0)
 
