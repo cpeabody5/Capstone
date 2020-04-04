@@ -7,10 +7,10 @@ import pathlib
 import os
 import matplotlib.pyplot as plt
 try:
-	from . import record
+	from . import sharedmemory
 	from . import constants as cn
 except ImportError:
-	import record
+	import sharedmemory
 	import constants as cn
 
 def loading_bar(cur, total):
@@ -94,9 +94,10 @@ class RealNoise():
 
 class LiveMelSpectrogram():
 	def __init__(self, sr=None, t= None, n_mels=cn.default_mel, hop_length=cn.default_hop_length):
-		self.recorder = record.AudioRecorder(sr, t) # real time data
-		self.live_sample_rate = self.recorder.audio.DEFAULT_SAMPLE_RATE
-		self.num_samples = self.recorder.audio.BUFFER_DURATION*self.live_sample_rate
+		self.audio = sharedmemory.AudioObject(sr, t) # real time data
+		self.audio.init_mem(create=False)
+		self.live_sample_rate = self.audio.DEFAULT_SAMPLE_RATE
+		self.num_samples = self.audio.BUFFER_DURATION*self.live_sample_rate
 		self.sample_accum = None
 		self.n_mels = n_mels
 		self.hop_length = hop_length
@@ -106,7 +107,7 @@ class LiveMelSpectrogram():
 		if new_samples is None, samples will come from live audio 
 		"""
 		if new_samples is None:
-			new_samples = self.recorder()
+			new_samples = self.audio.read_audio_data()
 			sr = self.live_sample_rate
 		else:
 			assert not sr is None, "sr, sample rate must be defined if new_samples is specified."

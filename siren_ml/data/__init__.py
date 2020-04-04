@@ -8,12 +8,12 @@ from scipy import signal
 import sounddevice as sd
 
 if not __name__ == '__main__':
-	from . import record
+	from . import sharedmemory
 	from .plot import SpecAnimate 
 	from .spectrogram import GenerateData
 	from .spectrogram_functions import LiveMelSpectrogram
 else:
-	import record
+	import sharedmemory
 	from plot import SpecAnimate 
 	from spectrogram import GenerateData
 	from .spectrogram_functions import LiveMelSpectrogram

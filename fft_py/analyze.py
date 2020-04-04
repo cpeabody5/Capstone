@@ -131,7 +131,7 @@ class AudioAnalyzer:
 				window = self.audio.get_window(i, self.WIN_DURATION, self.STEP_SIZE)
 
 	# param realtime: bool indicating whether to read from file or shared memory
-	def __init__(self, realtime, filename):
+	def __init__(self, realtime, filename=''):
 		self.audio = AudioObject()
 		self.realtime = realtime
 		if realtime:

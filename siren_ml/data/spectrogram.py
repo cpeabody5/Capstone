@@ -11,12 +11,12 @@ import librosa.feature
 import time
 import sounddevice as sd
 try:
-	from . import record
+	# from . import record
 	from . import constants as cn
 	from . import frequency as fr
 	from . import spectrogram_functions as sf
 except ImportError:
-	import record
+	# import record
 	import constants as cn
 	import frequency as fr
 	import spectrogram_functions as sf

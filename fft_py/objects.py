@@ -6,9 +6,7 @@ Required:
 	atexit
 '''
 
-import numpy as np 
-from scipy.io import wavfile
-import atexit
+import numpy as np
 
 class AudioObject:
 	'''
@@ -26,6 +24,7 @@ class AudioObject:
 
 	# reads from wav file & populates data field
 	def read_wav(self, filename):
+		from scipy.io import wavfile
 		fs, data = wavfile.read(filename)
 		self.fs = fs
 		self.data = data
@@ -46,8 +45,9 @@ class AudioObject:
 	# Initializes a Memory Location and links self.data to the memory location
 	# Does not return anything
 	def init_mem(self, create=False):
-		self.is_shared_memory = True
 		import SharedArray as sa
+		import atexit
+		self.is_shared_memory = True
 		num_samples = int(self.BUFFER_DURATION * self.fs)
 		if create:
 			self.data = sa.create(self.SHARED_MEM_NAME, num_samples, np.float32)
@@ -58,12 +58,12 @@ class AudioObject:
 	# Deletes shared memory
 	def cleanup_mem(self):
 		import SharedArray as sa
-		print('cleanup memory')
 		sa.delete(self.SHARED_MEM_NAME)
+		print('cleanup memory: shared memory deleted')
 
 	# Writes audio data to shared memory
 	def write_audio_data(self, samples):
-		self.data[:] = samples[:]   # shallow copy
+		self.data[:] = np.copy(samples)   # shallow copy
 
 	# Reads shared memory
 	def read_audio_data(self):
