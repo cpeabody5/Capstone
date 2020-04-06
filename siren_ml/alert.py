@@ -1,4 +1,4 @@
-from gpiozero import led
+from gpiozero import LED
 
 class Alerter():
     def __init__(self, gpio_num = 17):
