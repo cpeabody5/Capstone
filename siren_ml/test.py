@@ -4,9 +4,10 @@ import utilities as ut
 from data import LiveMelSpectrogram
 from model import SirenDetection
 from train import gen_data
-from alert import Alerter
+#from alert import Alerter
+import processing
 
-def test():
+def test(history_size, output_threshold, process_func, output_func):
 	save_folder = ut.save_folder
 	save_file = ut.save_file
 	saved_data_file = ut.saved_data_file
@@ -15,7 +16,6 @@ def test():
 	process_params = np.load(process_params_path)
 	
 	detector = SirenDetection()
-	alerter = Alerter()
 
 	# load weights
 	inputs, actual = gen_data(3)
@@ -26,12 +26,7 @@ def test():
 	# processing:
 	max_val = process_params["max_val"]
 
-	history_size = 7
-	decay=0.7
-	output_threshold = 1.2
-
 	past_results = np.zeros(history_size)
-	weights = np.power([decay]*history_size, np.arange(history_size-1, -1, -1))
 
 	# run detector on live data
 	spec = LiveMelSpectrogram()
@@ -44,14 +39,14 @@ def test():
 		past_results = np.roll(past_results, -1)	# shift elements backwards to preserve chronological order
 		past_results[len(past_results) - 1] = current_val
 
-		# Calculate output based on past & current result (decay function)
-		weighted_results = np.multiply(past_results, weights)
-		val = np.sum(weighted_results)
-		alerter.set_status(val > output_threshold)
+		# Process Results and get output
+		val = process_func(past_results)
+		output_func(val > output_threshold)
 		print('{:3.2f}\t{}'.format(val, past_results))
 
 def main():
-	test()
+	alerter = Alerter()
+	test(7, 1.2, lambda x:processing.decay(x, 0.7), alerter.set_alert_status)
 
 if __name__ == '__main__':
 	main()
