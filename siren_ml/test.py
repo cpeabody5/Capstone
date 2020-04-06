@@ -4,7 +4,7 @@ import utilities as ut
 from data import LiveMelSpectrogram
 from model import SirenDetection
 from train import gen_data
-#from alert import Alerter
+from alert import Alerter
 import processing
 
 def test(history_size, output_threshold, process_func, output_func):
