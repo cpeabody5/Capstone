@@ -118,8 +118,8 @@ int main(void)
   MX_USB_HOST_Init();
   MX_ADC1_Init();
   MX_CAN1_Init();
-  //MX_CAN2_Init();
-  //MX_SPI3_Init();
+  MX_CAN2_Init();
+  MX_SPI3_Init();
   /* USER CODE BEGIN 2 */
   //CAN_MSR_RX CAN_rx_msg;
 
@@ -138,28 +138,27 @@ int main(void)
   //uint8_t data[2] = "hi";
   //int len = strlen(data);
   //int pinValue = 0;
-  //HAL_ADC_Start(&hadc1);
+  HAL_ADC_Start(&hadc1);
 
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
-   HAL_Delay(2000);
+  //HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+   //HAL_Delay(2000);
 
 
 
   while (1)
   {
 	  /* Try to use ADC */
-	  /*while(HAL_ADC_GetFlagStatus(&hadc1,ADC_FLAG_EOC))
+	  //while(HAL_ADC_GetFlagStatus(&hadc1,ADC_FLAG_EOC))
 	  //if (HAL_ADC_GetFlagStatus(&hadc1,ADC_FLAG_EOC)) pinValue = HAL_ADC_GetValue(&hadc1); // Check if ADC is done conversion by flag and if it is then save to a variable
 	  if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK){ // Poll the ADC to see if it is ready
-		  pinValue = HAL_ADC_GetValue(&hadc1); // Save ADC value to a variable
-		  LED_Thresholding(pinValue);
-		  HAL_ADC_Stop(&hadc1);
-		  HAL_ADC_Start(&hadc1);
+		  data = HAL_ADC_GetValue(&hadc1); // Save ADC value to a variable
+		  //LED_Thresholding(pinValue);
+		  //HAL_ADC_Stop(&hadc1);
+		  //HAL_ADC_Start(&hadc1);
 	  }
 	  HAL_Delay(100); // Read every 100 milliseconds
-		*/
 	  // CAN Stuff
-	  data = 0x0FFF;
+	  //data = 0x0FFF;
 	  upper_bits = (char)((data & 0xFF00) >> 8);
 	  lower_bits = data & 0x00FF;
 	  //CAN_drive.data[0] = upper_bits;
@@ -258,14 +257,14 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV8;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.EOCSelection = DISABLE;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -565,14 +564,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pin = MEMS_INT1_Pin|MEMS_INT2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : B5_Pin VSYNC_Pin G2_Pin */
-  GPIO_InitStruct.Pin = B5_Pin|VSYNC_Pin|G2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF14_LTDC;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pin : ACP_RST_Pin */
