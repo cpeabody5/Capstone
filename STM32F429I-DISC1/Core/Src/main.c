@@ -71,7 +71,7 @@ void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
 void LED_Thresholding(int adcValue);
-void Error_Handler_2(void);
+uint16_t GetADC_Value(uint16_t);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -83,6 +83,8 @@ CAN_RxHeaderTypeDef   RxHeader;
 uint8_t               TxData[8];
 uint8_t               RxData[8];
 uint32_t              TxMailbox;
+
+ADC_ChannelConfTypeDef sConfig = {0};
 /* USER CODE END 0 */
 
 /**
@@ -150,33 +152,46 @@ int main(void)
 	  /* Try to use ADC */
 	  //while(HAL_ADC_GetFlagStatus(&hadc1,ADC_FLAG_EOC))
 	  //if (HAL_ADC_GetFlagStatus(&hadc1,ADC_FLAG_EOC)) pinValue = HAL_ADC_GetValue(&hadc1); // Check if ADC is done conversion by flag and if it is then save to a variable
-	  if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK){ // Poll the ADC to see if it is ready
+	  /*if (HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY) == HAL_OK){ // Poll the ADC to see if it is ready
 		  data = HAL_ADC_GetValue(&hadc1); // Save ADC value to a variable
 		  //LED_Thresholding(pinValue);
 		  //HAL_ADC_Stop(&hadc1);
-		  //HAL_ADC_Start(&hadc1);
+		  HAL_ADC_Start(&hadc1);
+	  }*/
+	  //data = GetADC_Value(5);
+	  //for(int i=3;i<7;i++){
+	  for(int i=0; i<4; i++){
+		  // Using channels 3,4,5,6
+		  data = GetADC_Value(i+3);
+	      //micData[i-3]=adcRead(i);
+		  // 2 Bytes of data = id and reading for a mic
+		  // idda tada
+		  // data & 0xFF00 -> 0x0#00
+		  // 0x0#00 >> 8 -> 0x000#
+		  // i << 6 -> (for i = 1) -> 01 << 4 = 01000000 = 0x0010
+		  TxData[2*i] = (char)(((data & 0xFF00) >> 8) | (i << 4)); // MSB
+		  TxData[2*i+1] = data & 0x00FF; // LSB
+	      //micData[i-3] = micData[i-3] & (i-3)<<14;
 	  }
-	  HAL_Delay(100); // Read every 100 milliseconds
 	  // CAN Stuff
 	  //data = 0x0FFF;
-	  upper_bits = (char)((data & 0xFF00) >> 8);
-	  lower_bits = data & 0x00FF;
+	  //upper_bits = (char)((data & 0xFF00) >> 8);
+	  //lower_bits = data & 0x00FF;
 	  //CAN_drive.data[0] = upper_bits;
 	  //CAN_drive.data[1] = lower_bits;
 
 	  //aTxBuffer[0] = 0xF;
-	  TxData[0] = upper_bits;
-	  TxData[1] = lower_bits;
+	  //TxData[0] = upper_bits;
+	  //TxData[1] = lower_bits;
       halstatus = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
       //HAL_CAN_GetTxMailboxesFreeLevel(&hcan1);
-      /*if (halstatus != HAL_OK)
+      if (halstatus != HAL_OK)
       {
     	  printf("error");
-        Error_Handler_2();
-      }*/
+        Error_Handler();
+      }
       while(!HAL_CAN_GetTxMailboxesFreeLevel(&hcan1)){
-    	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-    	   HAL_Delay(50);
+    	 HAL_Delay(500);
       }
 	  /*halstatus = HAL_SPI_Transmit(&hspi3, (uint8_t*)aTxBuffer, 2, 5000);
 	  while(halstatus != HAL_OK){
@@ -188,6 +203,7 @@ printf("hi");*/
     MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
+	  HAL_Delay(1); // Read every 1 milliseconds
   }
   /* USER CODE END 3 */
 }
@@ -246,7 +262,7 @@ static void MX_ADC1_Init(void)
 
   /* USER CODE END ADC1_Init 0 */
 
-  ADC_ChannelConfTypeDef sConfig = {0};
+  //ADC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN ADC1_Init 1 */
 
@@ -264,7 +280,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.EOCSelection = DISABLE;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -301,7 +317,7 @@ static void MX_CAN1_Init(void)
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 16;
+  hcan1.Init.Prescaler = 2;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan1.Init.TimeSeg1 = CAN_BS1_13TQ;
@@ -356,7 +372,8 @@ static void MX_CAN1_Init(void)
   TxHeader.ExtId = 0x00;
   TxHeader.RTR = CAN_RTR_DATA;
   TxHeader.IDE = CAN_ID_STD;
-  TxHeader.DLC = 2;
+  //TxHeader.DLC = 2; // For sending just one mic
+  TxHeader.DLC = 8; // For sending 4 mics
   TxHeader.TransmitGlobalTime = DISABLE;
   /* USER CODE END CAN1_Init 2 */
 
@@ -704,6 +721,34 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+uint16_t GetADC_Value(uint16_t channel){
+	uint16_t value = 0;
+	sConfig.Channel = channel;
+	sConfig.Rank = 1;
+	sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES; //or any other value available.
+
+	//add to channel select
+	if(HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
+		Error_Handler();
+	}
+
+	HAL_ADC_Start(&hadc1);
+
+	if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
+		value = HAL_ADC_GetValue(&hadc1);
+	} else {
+		Error_Handler();
+	}
+	//remove from channel select
+	sConfig.Rank = 16;
+
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK){
+		Error_Handler();
+	}
+
+	return value;
+}
+
 void LED_Thresholding(int adcValue){
 	/*if (adcValue > floor(ADC_RESOLUTION/2)){
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1);
@@ -741,18 +786,6 @@ void LED_Thresholding(int adcValue){
 	}
 }
 
-/**
-  * @brief  This function is executed in case of error occurrence.
-  * @retval None
-  */
-void Error_Handler_2(void)
-{\
-  /* User can add his own implementation to report the HAL error return state */
-	while(1){
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_2);
-	   HAL_Delay(200);
-	}
-}
 
 /**
   * @brief  Rx Fifo 0 message pending callback
@@ -800,10 +833,8 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
-	while(1){
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-	   HAL_Delay(200);
-	}
+
+	 HAL_Delay(500);
   /* USER CODE END Error_Handler_Debug */
 }
 
