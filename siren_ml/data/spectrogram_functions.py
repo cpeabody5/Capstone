@@ -38,6 +38,9 @@ def structured_noise():
 	pass
 
 def real_noise(shape):
+	# r = RealNoise()
+	# r.sample_noise()
+	# exit()
 	return RealNoise()(shape)
 
 class RealNoise():
@@ -190,4 +193,5 @@ def view_both():
 
 
 if __name__ == '__main__':
-	view_live_spectrogram()
+	#view_live_spectrogram()
+	view_both()

@@ -46,6 +46,7 @@ def test(history_size, output_threshold, process_func, output_func):
 
 def main():
 	alerter = Alerter()
+	alerter.set_status(True)
 	test(7, 1.2, lambda x:processing.decay(x, 0.7), alerter.set_alert_status)
 
 if __name__ == '__main__':

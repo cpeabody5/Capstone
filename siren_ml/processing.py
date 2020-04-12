@@ -2,8 +2,8 @@ import numpy as np
 
 ''' Functions used by test.py to post-process results '''
 
-def moving_avg():
-	pass
+def moving_avg(data):
+	return np.average(data)
 
 # Computes a weighted sum with more recent data prioritized over older data
 # data: array in chronological order (oldest data first, more recent data last)
